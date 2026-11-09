@@ -1,0 +1,30 @@
+@import 'antd/dist/reset.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-be-vietnam-pro), 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Preserve Times New Roman strictly inside the A4 Document Editor & Preview Sheet */
+.a4-preview-sheet,
+.a4-preview-sheet *,
+.a4-sheet,
+.a4-sheet * {
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
+code {
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
