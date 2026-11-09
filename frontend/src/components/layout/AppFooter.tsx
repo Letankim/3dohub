@@ -6,7 +6,6 @@ import { Space, Typography } from 'antd';
 import {
   MailOutlined,
   SafetyCertificateOutlined,
-  PhoneOutlined,
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -68,16 +67,6 @@ export const AppFooter: React.FC = () => {
             <MailOutlined />
             <span>3do.service@gmail.com</span>
           </a>
-          <span style={{ color: '#CBD5E1' }}>•</span>
-          <Space size={4} style={{ color: '#475569', fontSize: 13, fontWeight: 500 }}>
-            <PhoneOutlined style={{ color: '#16A34A' }} />
-            <span>Hotline:</span>
-            <a href="tel:0774889191" style={{ color: '#0F172A', textDecoration: 'none', fontWeight: 600 }}>0774.88.9191</a>
-            <span style={{ color: '#64748B', fontSize: 12 }}>(Mr. Cường)</span>
-            <span style={{ color: '#CBD5E1' }}>-</span>
-            <a href="tel:0865341745" style={{ color: '#0F172A', textDecoration: 'none', fontWeight: 600 }}>0865.341.745</a>
-            <span style={{ color: '#64748B', fontSize: 12 }}>(Mr. Kim)</span>
-          </Space>
         </Space>
 
         {/* Bottom Row: Centered Copyright & Zero-Data-Retention Notice */}

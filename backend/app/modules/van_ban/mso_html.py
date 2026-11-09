@@ -87,10 +87,8 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         right_parts.append(
             f'<p style="margin:0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
             f'font-size:{nums["PARTY_MOTTO_SIZE"]}pt;font-weight:bold;line-height:1.25;">'
-            f"{html.escape(motto_lines[0])}</p>"
-        )
-        right_parts.append(
-            f'<div style="width:62%;margin:2pt 0 4pt auto;border-bottom:1pt solid #000;"></div>'
+            f'<span style="display:inline-block;border-bottom:1pt solid #000;padding-bottom:3pt;">'
+            f"{html.escape(motto_lines[0])}</span></p>"
         )
     elif len(motto_lines) >= 2:
         right_parts.append(
@@ -101,10 +99,8 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         right_parts.append(
             f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{nums["TN_SIZE"]}pt;font-weight:bold;line-height:1.25;">'
-            f"{html.escape(motto_lines[1])}</p>"
-        )
-        right_parts.append(
-            '<div style="width:52%;margin:2pt auto 4pt auto;border-bottom:1pt solid #000;"></div>'
+            f'<span style="display:inline-block;border-bottom:1pt solid #000;padding-bottom:3pt;">'
+            f"{html.escape(motto_lines[1])}</span></p>"
         )
 
     if hdr.get("date_line"):
