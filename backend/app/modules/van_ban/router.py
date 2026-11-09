@@ -24,6 +24,8 @@ from app.modules.van_ban.mso_html import (
 )
 from app.modules.van_ban.docx_builder import (
     build_docx_bytes,
+)
+from app.modules.van_ban.docx_parser import (
     extract_lines_from_docx_bytes,
 )
 from app.modules.van_ban.sfdt_builder import build_sfdt

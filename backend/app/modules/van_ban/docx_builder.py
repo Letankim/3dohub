@@ -425,41 +425,6 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
     return buf.getvalue()
 
 
-def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
-    """Extract all lines from an uploaded .docx file (including Header/Footer tables and body)."""
-    doc = Document(io.BytesIO(file_bytes))
-    lines: list[str] = []
-
-    # Iterate through document body elements in document order (tables and paragraphs)
-    for child in doc.element.body.iterchildren():
-        tag = child.tag.split("}")[-1]
-        if tag == "p":
-            texts = [t.text for t in child.iter(qn("w:t")) if t.text]
-            full_p = "".join(texts).strip()
-            if full_p:
-                lines.append(full_p)
-        elif tag == "tbl":
-            rows_els = list(child.iter(qn("w:tr")))
-            # If table has >= 2 rows, extract as pipe-delimited body data table rows
-            if len(rows_els) >= 2:
-                for tr_el in rows_els:
-                    row_cells: list[str] = []
-                    for tc_el in tr_el.findall(qn("w:tc")):
-                        cell_paras = []
-                        for p_el in tc_el.iter(qn("w:p")):
-                            t_str = "".join(t.text for t in p_el.iter(qn("w:t")) if t.text).strip()
-                            if t_str:
-                                cell_paras.append(t_str)
-                        row_cells.append(" ".join(cell_paras))
-                    if any(row_cells):
-                        lines.append("| " + " | ".join(row_cells) + " |")
-            else:
-                for cell in child.iter(qn("w:tc")):
-                    for p_el in cell.iter(qn("w:p")):
-                        texts = [t.text for t in p_el.iter(qn("w:t")) if t.text]
-                        full_p = "".join(texts).strip()
-                        if full_p:
-                            lines.append(full_p)
-
-    return lines
+# Re-export for backwards compatibility
+from .docx_parser import extract_lines_from_docx_bytes
 

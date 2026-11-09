@@ -225,8 +225,10 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     const id = (args?.item?.id || '').toLowerCase();
     const text = (args?.item?.text || '').toLowerCase();
     if (id.includes('open') || text === 'open') {
+      if (args) args.cancel = true;
       fileInputRef.current?.click();
     } else if (id.includes('new') || text === 'new') {
+      if (args) args.cancel = true;
       const editor = containerRef.current?.documentEditor;
       if (editor) {
         editor.openBlank();
