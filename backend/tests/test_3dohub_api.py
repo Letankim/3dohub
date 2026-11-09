@@ -188,6 +188,7 @@ def test_dang_normalization_and_logic_warnings():
     # Verify MSO clipboard HTML & A4 preview HTML
     assert "urn:schemas-microsoft-com:office:word" in data["mso_clipboard_html"]
     assert "a4-preview-sheet" in data["a4_preview_html"]
+    assert data["sfdt"]["sections"][0]["blocks"], "SFDT must contain blocks"
 
     # Verify generated .docx binary can be uploaded back to /normalize-docx
     docx_bytes = base64.b64decode(data["docx_base64"])

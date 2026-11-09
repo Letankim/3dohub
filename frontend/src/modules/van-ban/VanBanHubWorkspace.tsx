@@ -2,13 +2,19 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { message } from 'antd';
+import { message, Segmented } from 'antd';
+import dynamic from 'next/dynamic';
 import { AppShell } from '@/components/layout/AppShell';
 import { CommandModal } from '@/components/common/CommandModal';
 import { ApiErrorAlert } from '@/components/common/ApiErrorAlert';
 import { HeroOverviewSection } from './components/HeroOverviewSection';
 import { UtilitiesHubPage } from './components/UtilitiesHubPage';
 import { VirtualDocEditor } from './components/VirtualDocEditor';
+
+const SyncfusionDocEditor = dynamic(
+  () => import('./components/SyncfusionDocEditor').then((m) => m.SyncfusionDocEditor),
+  { ssr: false, loading: () => <div style={{ padding: 24 }}>Đang tải trình soạn thảo...</div> }
+);
 import { TemplateModal } from './components/TemplateModal';
 import { UnitConfigModal } from './components/UnitConfigModal';
 import { LogicReportModal } from './components/LogicReportModal';
@@ -96,6 +102,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   const [selectedProfile, setSelectedProfile] = useState<string>('AUTO');
   const [rawText, setRawText] = useState<string>(DEFAULT_SAMPLE_DOC);
   const [normResult, setNormResult] = useState<NormalizedDocResult | null>(null);
+  const [editorEngine, setEditorEngine] = useState<'SYNCFUSION' | 'BASIC'>('SYNCFUSION');
   const [unitInfo, setUnitInfo] = useState<UnitConfig>(DEFAULT_UNIT_CONFIG);
   const [loading, setLoading] = useState<boolean>(false);
   const [extractingUnit, setExtractingUnit] = useState<boolean>(false);
@@ -467,23 +474,36 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ) : workspaceTab === 'QR_CODE_WORKSPACE' ? (
         <QrCodeWorkspace />
       ) : (
-        <VirtualDocEditor
-          profiles={profiles}
-          selectedProfile={selectedProfile}
-          onChangeProfile={(pid, currentText) => {
-            setSelectedProfile(pid);
-            handleNormalize(currentText || rawText, pid);
-          }}
-          rawText={rawText}
-          onChangeRawText={setRawText}
-          normResult={normResult}
-          onNormalize={(customText) => handleNormalize(customText)}
-          onUploadDocx={handleUploadDocx}
-          onOpenTemplatesModal={() => setTemplateModalOpen(true)}
-          onOpenUnitModal={() => setUnitModalOpen(true)}
-          onOpenLogicModal={() => setLogicModalOpen(true)}
-          loading={loading}
-        />
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <Segmented
+              size="small"
+              value={editorEngine}
+              onChange={(v) => setEditorEngine(v as 'SYNCFUSION' | 'BASIC')}
+              options={[
+                { label: 'Trình soạn thảo Word (Syncfusion)', value: 'SYNCFUSION' },
+                { label: 'Trình soạn thảo cơ bản', value: 'BASIC' },
+              ]}
+            />
+          </div>
+          {React.createElement(editorEngine === 'SYNCFUSION' ? SyncfusionDocEditor : VirtualDocEditor, {
+            profiles,
+            selectedProfile,
+            onChangeProfile: (pid: string, currentText?: string) => {
+              setSelectedProfile(pid);
+              handleNormalize(currentText || rawText, pid);
+            },
+            rawText,
+            onChangeRawText: setRawText,
+            normResult,
+            onNormalize: (customText?: string) => handleNormalize(customText),
+            onUploadDocx: handleUploadDocx,
+            onOpenTemplatesModal: () => setTemplateModalOpen(true),
+            onOpenUnitModal: () => setUnitModalOpen(true),
+            onOpenLogicModal: () => setLogicModalOpen(true),
+            loading,
+          })}
+        </>
       )}
 
       {/* Hidden DOCX Upload input for Home page */}

@@ -26,6 +26,7 @@ from app.modules.van_ban.docx_builder import (
     build_docx_bytes,
     extract_lines_from_docx_bytes,
 )
+from app.modules.van_ban.sfdt_builder import build_sfdt
 from app.modules.van_ban.schemas import (
     NormalizeTextRequest,
     GenerateTemplateRequest,
@@ -62,6 +63,7 @@ def _build_full_normalization_payload(
         "normalized_text": norm_text,
         "a4_preview_html": a4_html,
         "mso_clipboard_html": mso_html,
+        "sfdt": build_sfdt(norm_doc),
         "docx_base64": docx_b64,
         "docx_filename": f"VanBan_ChuanHoa_{norm_doc['applied_profile']}.docx",
         "payload_checksum": compute_sha256_hex(norm_text.encode("utf-8")),

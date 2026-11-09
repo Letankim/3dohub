@@ -99,6 +99,7 @@ export interface NormalizedDocResult {
   normalized_text: string;
   a4_preview_html: string;
   mso_clipboard_html: string;
+  sfdt?: Record<string, unknown>;
   docx_base64: string;
   docx_filename: string;
   payload_checksum?: string;
@@ -213,6 +214,7 @@ export interface ExcelNormalizedResult {
   a4_preview_html: string;
   original_preview_html: string;
   mso_clipboard_html: string;
+  sfdt?: Record<string, unknown>;
   xlsx_base64: string;
   original_xlsx_base64: string;
   payload_checksum: string;

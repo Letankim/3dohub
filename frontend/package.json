@@ -11,6 +11,9 @@
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
     "@ant-design/nextjs-registry": "1.0.2",
+    "@syncfusion/ej2-base": "^35.1.37",
+    "@syncfusion/ej2-material3-theme": "^35.1.43",
+    "@syncfusion/ej2-react-documenteditor": "^35.1.43",
     "antd": "^5.22.2",
     "axios": "^1.7.7",
     "hyperformula": "^3.5.0",
