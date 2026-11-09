@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { message, Segmented } from 'antd';
+import { message } from 'antd';
 import dynamic from 'next/dynamic';
 import { AppShell } from '@/components/layout/AppShell';
 import { CommandModal } from '@/components/common/CommandModal';
@@ -103,7 +103,6 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   const [selectedProfile, setSelectedProfile] = useState<string>('AUTO');
   const [rawText, setRawText] = useState<string>(DEFAULT_SAMPLE_DOC);
   const [normResult, setNormResult] = useState<NormalizedDocResult | null>(null);
-  const [editorEngine, setEditorEngine] = useState<'SYNCFUSION' | 'BASIC'>('BASIC');
   const [unitInfo, setUnitInfo] = useState<UnitConfig>(DEFAULT_UNIT_CONFIG);
   const [loading, setLoading] = useState<boolean>(false);
   const [extractingUnit, setExtractingUnit] = useState<boolean>(false);
@@ -312,13 +311,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
           return;
         }
 
-        // 3. Only normalize DEFAULT_SAMPLE_DOC if in Editor workspace and no existing doc
-        if (
-          pathname?.startsWith('/tien-ich/chuan-hoa-van-ban') ||
-          initialMode === 'EDITOR_WORKSPACE'
-        ) {
-          await handleNormalize(DEFAULT_SAMPLE_DOC, 'AUTO');
-        }
+        // 3. Không tự động chuẩn hóa khi mở trang; người dùng chủ động bấm 'Chuẩn hóa'
       } catch (err) {
         if (err instanceof HubApiException) {
           setApiError(err);
@@ -476,65 +469,14 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         <QrCodeWorkspace />
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-            <Segmented
-              size="small"
-              value={editorEngine}
-              onChange={(v) => setEditorEngine(v as 'SYNCFUSION' | 'BASIC')}
-              options={[
-                { label: 'Trình soạn thảo cơ bản (Nhanh & Tương thích cao)', value: 'BASIC' },
-                { label: 'Trình soạn thảo Word (Syncfusion Office)', value: 'SYNCFUSION' },
-              ]}
-            />
-          </div>
-          {editorEngine === 'SYNCFUSION' ? (
-            <EditorErrorBoundary
-              onErrorFallback={() => setEditorEngine('BASIC')}
-              fallback={
-                <VirtualDocEditor
-                  profiles={profiles}
-                  selectedProfile={selectedProfile}
-                  onChangeProfile={(pid, currentText) => {
-                    setSelectedProfile(pid);
-                    handleNormalize(currentText || rawText, pid);
-                  }}
-                  rawText={rawText}
-                  onChangeRawText={setRawText}
-                  normResult={normResult}
-                  onNormalize={(customText) => handleNormalize(customText)}
-                  onUploadDocx={handleUploadDocx}
-                  onOpenTemplatesModal={() => setTemplateModalOpen(true)}
-                  onOpenUnitModal={() => setUnitModalOpen(true)}
-                  onOpenLogicModal={() => setLogicModalOpen(true)}
-                  loading={loading}
-                />
-              }
-            >
-              <SyncfusionDocEditor
-                profiles={profiles}
-                selectedProfile={selectedProfile}
-                onChangeProfile={(pid, currentText) => {
-                  setSelectedProfile(pid);
-                  handleNormalize(currentText || rawText, pid);
-                }}
-                rawText={rawText}
-                onChangeRawText={setRawText}
-                normResult={normResult}
-                onNormalize={(customText) => handleNormalize(customText)}
-                onUploadDocx={handleUploadDocx}
-                onOpenTemplatesModal={() => setTemplateModalOpen(true)}
-                onOpenUnitModal={() => setUnitModalOpen(true)}
-                onOpenLogicModal={() => setLogicModalOpen(true)}
-                loading={loading}
-              />
-            </EditorErrorBoundary>
-          ) : (
+        <EditorErrorBoundary
+          fallback={
             <VirtualDocEditor
               profiles={profiles}
               selectedProfile={selectedProfile}
               onChangeProfile={(pid, currentText) => {
                 setSelectedProfile(pid);
-                handleNormalize(currentText || rawText, pid);
+                if (currentText) setRawText(currentText);
               }}
               rawText={rawText}
               onChangeRawText={setRawText}
@@ -546,7 +488,26 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
               onOpenLogicModal={() => setLogicModalOpen(true)}
               loading={loading}
             />
-          )}
+          }
+        >
+          <SyncfusionDocEditor
+            profiles={profiles}
+            selectedProfile={selectedProfile}
+            onChangeProfile={(pid, currentText) => {
+              setSelectedProfile(pid);
+              if (currentText) setRawText(currentText);
+            }}
+            rawText={rawText}
+            onChangeRawText={setRawText}
+            normResult={normResult}
+            onNormalize={(customText) => handleNormalize(customText)}
+            onUploadDocx={handleUploadDocx}
+            onOpenTemplatesModal={() => setTemplateModalOpen(true)}
+            onOpenUnitModal={() => setUnitModalOpen(true)}
+            onOpenLogicModal={() => setLogicModalOpen(true)}
+            loading={loading}
+          />
+        </EditorErrorBoundary>
         </>
       )}
 

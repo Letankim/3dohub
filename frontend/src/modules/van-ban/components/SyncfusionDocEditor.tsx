@@ -18,7 +18,7 @@ import {
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
-import { stripFootnotes } from '../utils/sfdt-utils';
+import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
 
 // Khóa bản quyền chính thức Syncfusion (Hỗ trợ cấu hình từ ENV hoặc chạy key dự phòng)
 const DEFAULT_SYNCFUSION_LICENSE =
@@ -41,20 +41,33 @@ try {
 }
 
 const TOOLBAR_ITEMS = [
+  'New',
+  'Open',
+  'Separator',
   'Undo',
   'Redo',
   'Separator',
   'Image',
   'Table',
   'Hyperlink',
+  'Bookmark',
+  'TableOfContents',
   'Separator',
   'Header',
   'Footer',
   'PageSetup',
   'PageNumber',
   'Break',
+  'InsertFootnote',
+  'InsertEndnote',
   'Separator',
   'Find',
+  'Comments',
+  'TrackChanges',
+  'LocalClipboard',
+  'RestrictEditing',
+  'FormFields',
+  'UpdateFields',
 ];
 
 export interface SyncfusionDocEditorProps {
@@ -97,52 +110,57 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
 }) => {
   const containerRef = useRef<DocumentEditorContainerComponent | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const initialLoadedRef = useRef<boolean>(false);
   const [ready, setReady] = useState(false);
   const [hasLicense, setHasLicense] = useState<boolean>(true);
 
-  // Tự động nhận license từ NEXT_PUBLIC_ hoặc từ endpoint /api/license
+  // Nhận license từ endpoint /api/license nếu có cập nhật mới
   useEffect(() => {
-    const envKey =
-      process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY ||
-      process.env.SYNCFUSION_LICENSE_KEY;
-
-    if (envKey) {
-      try {
-        registerLicense(envKey);
-        setHasLicense(true);
-      } catch {
-        // bỏ qua nếu đã đăng ký
-      }
-    } else {
-      fetch('/api/license')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.key) {
+    fetch('/api/license')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.key) {
+          try {
             registerLicense(data.key);
-            setHasLicense(true);
-          } else {
-            setHasLicense(false);
+          } catch {
+            // đã đăng ký
           }
-        })
-        .catch(() => setHasLicense(false));
-    }
+          setHasLicense(true);
+        }
+      })
+      .catch(() => setHasLicense(true));
   }, []);
 
-  /** Mở tài liệu SFDT đã chuẩn hóa (có footnote thật, số trang) vào trình soạn thảo. */
+  /** Mở tài liệu vào trình soạn thảo:
+   * - Nếu có normResult.sfdt (sau khi bấm Chuẩn hóa hoặc chọn mẫu): mở bản chuẩn hóa
+   * - Nếu chưa chuẩn hóa: nạp bản nháp ban đầu vào để người dùng soạn thảo
+   */
   useEffect(() => {
     const editor = containerRef.current?.documentEditor;
-    if (!ready || !editor || !normResult?.sfdt) return;
-    try {
-      editor.open(JSON.stringify(normResult.sfdt));
-    } catch {
+    if (!ready || !editor) return;
+
+    if (normResult?.sfdt) {
       try {
-        editor.open(JSON.stringify(stripFootnotes(normResult.sfdt)));
-        message.warning('Không dựng được chú thích cuối trang, đã hiển thị bản không có footnote.');
+        editor.open(JSON.stringify(normResult.sfdt));
+        initialLoadedRef.current = true;
       } catch {
-        message.error('Không mở được tài liệu trong trình soạn thảo.');
+        try {
+          editor.open(JSON.stringify(stripFootnotes(normResult.sfdt)));
+          initialLoadedRef.current = true;
+          message.warning('Không dựng được chú thích cuối trang, đã hiển thị bản không có footnote.');
+        } catch {
+          message.error('Không mở được tài liệu trong trình soạn thảo.');
+        }
+      }
+    } else if (!initialLoadedRef.current && rawText) {
+      try {
+        editor.open(JSON.stringify(textToSfdt(rawText)));
+        initialLoadedRef.current = true;
+      } catch {
+        // bỏ qua
       }
     }
-  }, [normResult, ready]);
+  }, [normResult, ready, rawText]);
 
   const getEditorText = (): string => {
     const editor = containerRef.current?.documentEditor;
@@ -151,7 +169,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
       editor.selection.selectAll();
       const text = (editor.selection.text || '').replace(/\r/g, '\n').trim();
       editor.selection.moveToDocumentStart();
-      return text.length > 10 ? text : rawText;
+      return text.length > 5 ? text : rawText;
     } catch {
       return rawText;
     }
@@ -178,7 +196,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
       editor.save(base, 'Docx');
       message.success(`Đã tải về tệp ${base}.docx`);
     } catch {
-      message.error('Không thể lưu file qua Syncfusion, hãy chuyển sang Trình soạn thảo cơ bản để tải.');
+      message.error('Không thể lưu file .docx từ trình soạn thảo.');
     }
   };
 
@@ -199,6 +217,20 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           }),
         ]);
         message.success('Đã copy chuẩn định dạng Microsoft Word!');
+      }
+    }
+  };
+
+  const handleToolbarClick = (args: any) => {
+    const id = (args?.item?.id || '').toLowerCase();
+    const text = (args?.item?.text || '').toLowerCase();
+    if (id.includes('open') || text === 'open') {
+      fileInputRef.current?.click();
+    } else if (id.includes('new') || text === 'new') {
+      const editor = containerRef.current?.documentEditor;
+      if (editor) {
+        editor.openBlank();
+        onChangeRawText('');
       }
     }
   };
@@ -288,6 +320,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           height="100%"
           enableToolbar
           toolbarItems={TOOLBAR_ITEMS as never}
+          toolbarClick={handleToolbarClick}
           showPropertiesPane={false}
           enableSpellCheck={false}
           created={() => setReady(true)}
