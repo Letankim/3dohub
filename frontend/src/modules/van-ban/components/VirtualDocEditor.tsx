@@ -69,6 +69,8 @@ export const VirtualDocEditor: React.FC<VirtualDocEditorProps> = ({
   const [totalPages, setTotalPages] = useState<number>(1);
   const [viewportWidth, setViewportWidth] = useState<number>(1280);
   const inputDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isDirtyRef = useRef<boolean>(false);
+  const pendingDownloadRef = useRef<boolean>(false);
 
   const isMobile = viewportWidth < 768;
   const isCompactInspector = viewportWidth < 1120;
@@ -108,6 +110,7 @@ export const VirtualDocEditor: React.FC<VirtualDocEditorProps> = ({
   };
 
   const handleSheetInput = () => {
+    isDirtyRef.current = true;
     recalculatePages();
     if (inputDebounceTimerRef.current) {
       clearTimeout(inputDebounceTimerRef.current);
@@ -126,6 +129,12 @@ export const VirtualDocEditor: React.FC<VirtualDocEditorProps> = ({
       a4SheetRef.current.innerHTML = normResult.a4_preview_html;
       setTimeout(recalculatePages, 60);
     }
+    isDirtyRef.current = false;
+    if (pendingDownloadRef.current && normResult) {
+      pendingDownloadRef.current = false;
+      triggerDocxDownload(normResult);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normResult]);
 
   // Responsive auto-fit on mobile, tablet & smaller laptop screens so 210mm (794px) A4 never clips horizontally
@@ -314,20 +323,12 @@ i, em {font-style:italic;}
     }
   };
 
-  const handleDownloadDocx = () => {
-    const liveText = getCurrentDocText();
-    // Auto re-normalize if user made edits on A4 canvas before downloading docx
-    if (liveText && normResult && liveText.trim() !== normResult.normalized_text?.trim()) {
-      message.info('Đang đồng bộ hóa nội dung vừa sửa trước khi tải tệp .DOCX...');
-      handleTriggerNormalize(liveText);
-      return;
-    }
-
-    if (!normResult?.docx_base64) {
+  const triggerDocxDownload = (result: NormalizedDocResult) => {
+    if (!result.docx_base64) {
       message.warning('Vui lòng bấm [Chuẩn Hóa Thể Thức] trước khi tải tệp .DOCX!');
       return;
     }
-    const byteCharacters = atob(normResult.docx_base64);
+    const byteCharacters = atob(result.docx_base64);
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
       byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -338,12 +339,27 @@ i, em {font-style:italic;}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = normResult.docx_filename || 'VanBan_ChuanHoa_3DoHub.docx';
+    a.download = result.docx_filename || 'VanBan_ChuanHoa_3DoHub.docx';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    message.success(`Đã tải về tệp ${normResult.docx_filename}`);
+    message.success(`Đã tải về tệp ${result.docx_filename || 'VanBan_ChuanHoa_3DoHub.docx'}`);
+  };
+
+  const handleDownloadDocx = () => {
+    // Chỉ chuẩn hóa lại khi người dùng thực sự đã sửa nội dung trên trang A4
+    if (isDirtyRef.current) {
+      message.info('Đang đồng bộ nội dung vừa sửa, tệp .docx sẽ tự tải ngay sau đó...');
+      pendingDownloadRef.current = true;
+      handleTriggerNormalize(getCurrentDocText());
+      return;
+    }
+    if (!normResult) {
+      message.warning('Vui lòng bấm [Chuẩn hóa] trước khi tải tệp .docx!');
+      return;
+    }
+    triggerDocxDownload(normResult);
   };
 
   return (
@@ -520,6 +536,53 @@ i, em {font-style:italic;}
                 Khổ A4 chuẩn ({totalPages} trang)
               </div>
             )}
+            <div style={{ position: 'relative' }}>
+              {/* Số trang & đường ngắt trang (chỉ hiển thị trên web, không copy sang Word) */}
+              {showPageNumber &&
+                Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => i + 2).map((pg) => (
+                  <React.Fragment key={pg}>
+                    <div
+                      contentEditable={false}
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: `calc(${(pg - 1) * 297}mm - 14px)`,
+                        height: 14,
+                        background: '#F1F5F9',
+                        borderTop: '1px dashed #94A3B8',
+                        borderBottom: '1px dashed #94A3B8',
+                        fontSize: 10,
+                        lineHeight: '12px',
+                        color: '#64748B',
+                        textAlign: 'center',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        zIndex: 2,
+                      }}
+                    >
+                      Hết trang {pg - 1} • Trang {pg}
+                    </div>
+                    <div
+                      contentEditable={false}
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: `calc(${(pg - 1) * 297}mm + 10mm)`,
+                        textAlign: 'center',
+                        fontFamily: "'Times New Roman', Times, serif",
+                        fontSize: '13pt',
+                        color: '#000',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        zIndex: 2,
+                      }}
+                    >
+                      {pg}
+                    </div>
+                  </React.Fragment>
+                ))}
             <div
               ref={a4SheetRef}
               contentEditable
@@ -539,6 +602,7 @@ i, em {font-style:italic;}
                 minHeight: '297mm',
               }}
             />
+            </div>
           </div>
         </div>
 

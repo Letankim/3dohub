@@ -10,6 +10,17 @@
 export function extractDocumentTextFromA4Sheet(container: HTMLElement | null): string {
   if (!container) return '';
 
+  // Chuyển <sup>n</sup> (chú thích cuối trang) về dạng [^n] để chuẩn hóa lại không mất footnote
+  const textOf = (el: HTMLElement): string => {
+    if (!el.querySelector('sup')) return el.innerText ?? el.textContent ?? '';
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('sup').forEach((s) => {
+      const n = (s.textContent || '').trim().replace(/^\[(\d+)\]$/, '$1');
+      s.replaceWith(/^\d+$/.test(n) ? `[^${n}]` : n);
+    });
+    return clone.textContent ?? '';
+  };
+
   // Look for the inner A4 sheet wrapper if present
   const sheet =
     container.querySelector<HTMLElement>('.a4-preview-sheet, .a4-sheet') || container;
@@ -41,7 +52,7 @@ export function extractDocumentTextFromA4Sheet(container: HTMLElement | null): s
         if (pStyle.includes('border-bottom') && !(pEl.textContent || '').trim()) continue;
         if (pStyle.includes('height:') && !(pEl.textContent || '').trim()) continue;
 
-        const t = (pEl.innerText ?? pEl.textContent ?? '').trim();
+        const t = textOf(pEl).trim();
         if (t && t !== '* * *') {
           res.push(t);
         }
@@ -49,7 +60,7 @@ export function extractDocumentTextFromA4Sheet(container: HTMLElement | null): s
       return res;
     }
 
-    const raw = htmlEl.innerText ?? htmlEl.textContent ?? '';
+    const raw = textOf(htmlEl);
     return raw
       .split('\n')
       .map((l) => l.trim())

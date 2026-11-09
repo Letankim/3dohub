@@ -8,6 +8,7 @@ from typing import Any
 def _highlight_brackets_html(text: str) -> str:
     """Escape HTML and wrap [...] placeholders in yellow highlight span."""
     escaped = html.escape(text or "")
+    escaped = re.sub(r"\[\^(\d+)\]", r"<sup>\1</sup>", escaped)
     return re.sub(
         r"(\[[^\]]+\])",
         r'<span style="background-color:#FEF08A;mso-highlight:yellow;">\1</span>',
@@ -323,12 +324,26 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         "</tr></table>"
     )
 
+    fns = norm_doc.get("footnotes") or []
+    footnotes_html = ""
+    if fns:
+        rows = "".join(
+            f'<p style="margin:0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1.2;">'
+            f"<sup>{html.escape(str(fn['n']))}</sup> {_highlight_brackets_html(fn['text'])}</p>"
+            for fn in fns
+        )
+        footnotes_html = (
+            '<p style="margin:10pt 0 2pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;">'
+            "<b>────────</b></p>" + rows
+        )
+
     return (
         header_table_html
         + "".join(title_parts)
         + kg_html
         + "".join(body_html_list)
         + footer_table_html
+        + footnotes_html
     )
 
 
@@ -408,5 +423,8 @@ def render_normalized_plain_text(norm_doc: dict[str, Any]) -> str:
         lines.append(ftr["sign_role"])
     if ftr.get("sign_name"):
         lines.append(ftr["sign_name"])
+
+    for fn in norm_doc.get("footnotes") or []:
+        lines.append(f"[^{fn['n']}]: {fn['text']}")
 
     return "\n".join(lines)

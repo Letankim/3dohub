@@ -78,19 +78,22 @@ def _add_runs_with_placeholder_highlight(
     italic: bool = False,
     underline: bool = False,
 ) -> None:
-    """Add text to a paragraph while highlighting [...] placeholders in yellow."""
-    parts = re.split(r"(\[[^\]]+\])", text or "")
+    """Add text to a paragraph, highlighting [...] placeholders and rendering [^n] as superscript."""
+    parts = re.split(r"(\[\^\d+\]|\[[^\]]+\])", text or "")
     for part in parts:
         if not part:
             continue
-        run = paragraph.add_run(part)
+        is_fn = bool(re.fullmatch(r"\[\^\d+\]", part))
+        run = paragraph.add_run(part[2:-1] if is_fn else part)
         run.font.name = "Times New Roman"
         run.font.size = Pt(size_pt)
         run.bold = bold
         run.italic = italic
         run.underline = underline
         run.font.color.rgb = RGBColor(0, 0, 0)
-        if part.startswith("[") and part.endswith("]"):
+        if is_fn:
+            run.font.superscript = True
+        elif part.startswith("[") and part.endswith("]"):
             run.font.highlight_color = WD_COLOR_INDEX.YELLOW
 
 
@@ -400,6 +403,22 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         _add_runs_with_placeholder_highlight(
             p_nm, ftr["sign_name"], nums["SIGN_SIZE"], bold=True
         )
+
+    # Chú thích cuối trang (footnotes) — đặt sau khối chữ ký, ngăn cách bằng đường kẻ ngắn
+    fns = norm_doc.get("footnotes") or []
+    if fns:
+        p_fl = doc.add_paragraph()
+        p_fl.paragraph_format.space_before = Pt(10)
+        p_fl.paragraph_format.space_after = Pt(2)
+        r_fl = p_fl.add_run("────────")
+        r_fl.font.name = "Times New Roman"
+        r_fl.font.size = Pt(10)
+        for fn in fns:
+            p_fn = doc.add_paragraph()
+            p_fn.paragraph_format.space_before = Pt(0)
+            p_fn.paragraph_format.space_after = Pt(0)
+            _add_runs_with_placeholder_highlight(p_fn, f"[^{fn['n']}]", 10)
+            _add_runs_with_placeholder_highlight(p_fn, " " + fn["text"], 10)
 
     buf = io.BytesIO()
     doc.save(buf)

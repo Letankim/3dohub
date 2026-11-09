@@ -176,6 +176,17 @@ def normalize_document_lines(
             else:
                 cleaned.append(c)
 
+    # Tách chú thích cuối trang "[^n]: nội dung" ra khỏi luồng văn bản trước khi quét khối chữ ký
+    footnotes: list[dict[str, str]] = []
+    kept: list[str] = []
+    for c_line in cleaned:
+        m_fn = re.match(r"^\[\^(\d+)\]:?\s*(.+)$", c_line.strip())
+        if m_fn:
+            footnotes.append({"n": m_fn.group(1), "text": m_fn.group(2).strip()})
+        else:
+            kept.append(c_line)
+    cleaned = kept
+
     res_info = resolve_profile(cleaned, force_profile)
     pid = res_info["applied_profile"]
     prof = get_profile(pid)
@@ -391,6 +402,7 @@ def normalize_document_lines(
             "items": kinh_gui_items,
         },
         "body_paragraphs": body_paragraphs,
+        "footnotes": footnotes,
         "footer": {
             "noi_nhan_label": "Nơi nhận:" if noi_nhan_items else "",
             "noi_nhan_items": noi_nhan_items,
