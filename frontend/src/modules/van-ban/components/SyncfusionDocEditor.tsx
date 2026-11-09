@@ -20,6 +20,19 @@ import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { stripFootnotes } from '../utils/sfdt-utils';
 
+// Khóa bản quyền chính thức Syncfusion (Hỗ trợ cấu hình từ ENV hoặc chạy key dự phòng)
+const DEFAULT_SYNCFUSION_LICENSE =
+  process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY ||
+  process.env.SYNCFUSION_LICENSE_KEY ||
+  'Ngo9BigBOggjGy1/VkN+XU9HcVRAXWFPY1J0WGNQb192f1ZFal1RT3RFQFtiSH5ad0NgXH1ddnJQRGtfVA==';
+
+// Đăng ký license NGAY LẬP TỨC ở module scope trước khi bất kỳ component nào mount
+try {
+  registerLicense(DEFAULT_SYNCFUSION_LICENSE);
+} catch {
+  // Bỏ qua nếu đã đăng ký
+}
+
 // Đăng ký module Toolbar một lần an toàn
 try {
   DocumentEditorContainerComponent.Inject(Toolbar);
@@ -271,7 +284,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
       <div style={{ height: 'calc(100vh - 230px)', minHeight: 620 }}>
         <DocumentEditorContainerComponent
           ref={containerRef}
-          id="3dohub-sf-doc-editor"
+          id="hub-doc-editor"
           height="100%"
           enableToolbar
           toolbarItems={TOOLBAR_ITEMS as never}
