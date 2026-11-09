@@ -321,6 +321,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           id="hub-doc-editor"
           height="100%"
           enableToolbar
+          serviceUrl="/tien-ich/"
           toolbarItems={TOOLBAR_ITEMS as never}
           toolbarClick={handleToolbarClick}
           showPropertiesPane={false}
