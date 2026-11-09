@@ -159,7 +159,9 @@ def classify_body_paragraph(line: str, profile_id: str) -> dict[str, Any]:
 
 
 def normalize_document_lines(
-    raw_lines: list[str], force_profile: str = "AUTO"
+    raw_lines: list[str],
+    force_profile: str = "AUTO",
+    existing_footnotes: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Execute the 6-step normalization pipeline on a list of document lines."""
     # Step 0: Clean soft breaks & split glued titles
@@ -177,14 +179,36 @@ def normalize_document_lines(
                 cleaned.append(c)
 
     # Tách chú thích cuối trang "[^n]: nội dung" ra khỏi luồng văn bản trước khi quét khối chữ ký
-    footnotes: list[dict[str, str]] = []
+    _SUPERSCRIPTS = {
+        "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5",
+        "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁰": "0",
+    }
+    footnotes: list[dict[str, str]] = list(existing_footnotes or [])
+    existing_nums = {str(f.get("n")) for f in footnotes}
     kept: list[str] = []
+
     for c_line in cleaned:
-        m_fn = re.match(r"^\[\^(\d+)\]:?\s*(.+)$", c_line.strip())
+        s = c_line.strip()
+        m_fn = (
+            re.match(r"^\[\^(\d+)\][\.\:\s\t]*(.+)$", s)
+            or re.match(r"^([¹²³⁴⁵⁶⁷⁸⁹]+)[\.\:\s\t]+(.+)$", s)
+            or re.match(r"^\[(\d+)\][\.\:\s\t]+(.+)$", s)
+        )
         if m_fn:
-            footnotes.append({"n": m_fn.group(1), "text": m_fn.group(2).strip()})
+            raw_n = m_fn.group(1)
+            n_str = "".join(_SUPERSCRIPTS.get(c, c) for c in raw_n)
+            fn_text = m_fn.group(2).strip()
+            if n_str not in existing_nums:
+                footnotes.append({"n": n_str, "text": fn_text})
+                existing_nums.add(n_str)
         else:
-            kept.append(c_line)
+            if any(c in s for c in _SUPERSCRIPTS):
+                s = re.sub(
+                    r"([¹²³⁴⁵⁶⁷⁸⁹]+)",
+                    lambda m: "[^" + "".join(_SUPERSCRIPTS.get(c, c) for c in m.group(1)) + "]",
+                    s,
+                )
+            kept.append(s)
     cleaned = kept
 
     res_info = resolve_profile(cleaned, force_profile)

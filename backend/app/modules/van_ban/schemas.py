@@ -17,9 +17,16 @@ class UnitConfigInput(BaseModel):
     ho_ten: str = Field(default="", max_length=255)
 
 
+class FootnoteItem(BaseModel):
+    n: str = Field(default="")
+    text: str = Field(default="")
+
+
 class NormalizeTextRequest(BaseModel):
     raw_text: str = Field(default="")
     profile_id: str = Field(default="AUTO")
+    unit_info: Optional[UnitConfigInput] = None
+    footnotes: Optional[list[FootnoteItem]] = Field(default=None)
 
     def validate_business_rules(self) -> None:
         details = []

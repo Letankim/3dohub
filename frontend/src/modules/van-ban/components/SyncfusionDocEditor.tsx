@@ -18,7 +18,7 @@ import {
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
-import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
+import { stripFootnotes, textToSfdt, extractTextAndFootnotesFromSfdt } from '../utils/sfdt-utils';
 
 // Khóa bản quyền chính thức Syncfusion (Hỗ trợ cấu hình từ ENV hoặc chạy key dự phòng)
 const DEFAULT_SYNCFUSION_LICENSE =
@@ -77,7 +77,7 @@ export interface SyncfusionDocEditorProps {
   rawText: string;
   onChangeRawText: (val: string) => void;
   normResult: NormalizedDocResult | null;
-  onNormalize: (customText?: string) => void;
+  onNormalize: (customText?: string, footnotes?: Array<{ n: string; text: string }>) => void;
   onUploadDocx: (file: File) => void;
   onOpenTemplatesModal: () => void;
   onOpenUnitModal: () => void;
@@ -162,27 +162,53 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     }
   }, [normResult, ready, rawText]);
 
-  const getEditorText = (): string => {
+  const getEditorTextAndFootnotes = (): {
+    text: string;
+    footnotes: Array<{ n: string; text: string }>;
+  } => {
     const editor = containerRef.current?.documentEditor;
-    if (!editor) return rawText;
+    if (!editor) return { text: rawText, footnotes: normResult?.footnotes || [] };
+    try {
+      const sfdtStr = editor.serialize();
+      if (sfdtStr && sfdtStr.length > 50) {
+        const sfdtObj = JSON.parse(sfdtStr);
+        const res = extractTextAndFootnotesFromSfdt(sfdtObj);
+        if (res.text.length > 10) {
+          const knownFns = normResult?.footnotes || [];
+          const mergedFns = [...res.footnotes];
+          for (const kf of knownFns) {
+            if (!mergedFns.some((f) => String(f.n) === String(kf.n))) {
+              mergedFns.push(kf);
+              res.text += `\n[^${kf.n}]: ${kf.text}`;
+            }
+          }
+          return { text: res.text, footnotes: mergedFns };
+        }
+      }
+    } catch {
+      // fallback nếu serialize gặp lỗi
+    }
     try {
       editor.selection.selectAll();
       const text = (editor.selection.text || '').replace(/\r/g, '\n').trim();
       editor.selection.moveToDocumentStart();
-      return text.length > 5 ? text : rawText;
+      return {
+        text: text.length > 5 ? text : rawText,
+        footnotes: normResult?.footnotes || [],
+      };
     } catch {
-      return rawText;
+      return { text: rawText, footnotes: normResult?.footnotes || [] };
     }
   };
 
   const handleNormalize = () => {
-    const text = getEditorText();
+    const { text, footnotes } = getEditorTextAndFootnotes();
     onChangeRawText(text);
-    onNormalize(text);
+    onNormalize(text, footnotes);
   };
 
   const handleChangeProfile = (pid: string) => {
-    const text = getEditorText();
+    const { text } = getEditorTextAndFootnotes();
     onChangeRawText(text);
     onChangeProfile(pid, text);
   };

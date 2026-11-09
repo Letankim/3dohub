@@ -172,7 +172,11 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   }, []);
 
   const handleNormalize = useCallback(
-    async (textToProcess?: string, profileOverride?: string) => {
+    async (
+      textToProcess?: string,
+      profileOverride?: string,
+      footnotesOverride?: Array<{ n: string; text: string }>
+    ) => {
       const targetText = textToProcess !== undefined ? textToProcess : rawText;
       const targetProfile = profileOverride !== undefined ? profileOverride : selectedProfile;
       if (!targetText || !targetText.trim()) {
@@ -182,7 +186,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       setLoading(true);
       setApiError(null);
       try {
-        const res = await hubApi.normalizeText(targetText, targetProfile);
+        const fnsToPass = footnotesOverride || normResult?.footnotes || undefined;
+        const res = await hubApi.normalizeText(targetText, targetProfile, unitInfo, fnsToPass);
         if (res.data) {
           setNormResult(res.data);
           setRawText(res.data.normalized_text);
@@ -205,7 +210,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         setLoading(false);
       }
     },
-    [rawText, selectedProfile]
+    [rawText, selectedProfile, unitInfo, normResult]
   );
 
   const handleGenerateTemplate = useCallback(
@@ -481,7 +486,9 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
               rawText={rawText}
               onChangeRawText={setRawText}
               normResult={normResult}
-              onNormalize={(customText) => handleNormalize(customText)}
+              onNormalize={(customText) => {
+                void handleNormalize(customText);
+              }}
               onUploadDocx={handleUploadDocx}
               onOpenTemplatesModal={() => setTemplateModalOpen(true)}
               onOpenUnitModal={() => setUnitModalOpen(true)}
@@ -500,7 +507,9 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
             rawText={rawText}
             onChangeRawText={setRawText}
             normResult={normResult}
-            onNormalize={(customText) => handleNormalize(customText)}
+            onNormalize={(customText, footnotes) => {
+              void handleNormalize(customText, undefined, footnotes);
+            }}
             onUploadDocx={handleUploadDocx}
             onOpenTemplatesModal={() => setTemplateModalOpen(true)}
             onOpenUnitModal={() => setUnitModalOpen(true)}

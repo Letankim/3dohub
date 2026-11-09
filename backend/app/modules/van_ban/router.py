@@ -38,10 +38,15 @@ router = APIRouter(prefix="/van-ban", tags=["Chuẩn Hóa Thể Thức Văn Bả
 
 
 def _build_full_normalization_payload(
-    raw_lines: list[str], profile_id: str, start_time: float
+    raw_lines: list[str],
+    profile_id: str,
+    start_time: float,
+    existing_footnotes: list[dict[str, str]] | None = None,
 ) -> dict:
     """Run pipeline, validation, HTML/MSO rendering, and .docx generation."""
-    norm_doc = normalize_document_lines(raw_lines, force_profile=profile_id)
+    norm_doc = normalize_document_lines(
+        raw_lines, force_profile=profile_id, existing_footnotes=existing_footnotes
+    )
     warnings = validate_document_logic(norm_doc)
     a4_html = render_a4_preview_html(norm_doc)
     mso_html = render_mso_clipboard_html(norm_doc)
@@ -78,6 +83,7 @@ def _build_full_normalization_payload(
             "footer": norm_doc["footer"],
         },
         "extracted_unit": norm_doc["extracted_unit"],
+        "footnotes": norm_doc.get("footnotes") or [],
         "warnings": warnings,
         "warnings_count": len(warnings),
         "stats": {
@@ -194,8 +200,9 @@ async def normalize_text_endpoint(
     t0 = time.perf_counter()
     payload.validate_business_rules()
     lines = payload.raw_text.splitlines()
+    existing_fns = [f.model_dump() for f in payload.footnotes] if payload.footnotes else None
     result = _build_full_normalization_payload(
-        lines, payload.profile_id.upper(), t0
+        lines, payload.profile_id.upper(), t0, existing_footnotes=existing_fns
     )
     return api_success(
         data=result,

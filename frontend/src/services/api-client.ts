@@ -185,13 +185,17 @@ export const hubApi = {
 
   async normalizeText(
     rawText: string,
-    profileId: string = 'AUTO'
+    profileId: string = 'AUTO',
+    unitInfo?: UnitConfig,
+    footnotes?: Array<{ n: string; text: string }>
   ): Promise<ApiResponse<NormalizedDocResult>> {
     const res = await axiosClient.post<ApiResponse<NormalizedDocResult>>(
       '/van-ban/normalize',
       {
         raw_text: rawText,
         profile_id: profileId,
+        unit_info: unitInfo,
+        footnotes: footnotes,
       }
     );
     return res.data;

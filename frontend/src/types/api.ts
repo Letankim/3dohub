@@ -104,6 +104,7 @@ export interface NormalizedDocResult {
   docx_filename: string;
   payload_checksum?: string;
   extracted_unit: UnitConfig;
+  footnotes?: Array<{ n: string; text: string }>;
   warnings: LogicWarningItem[];
   warnings_count: number;
   stats: {
