@@ -282,13 +282,13 @@ def is_date_line(s_asc: str) -> bool:
 
 
 def is_separator_line(s: str) -> bool:
-    """Return True if line is a horizontal separator ('-----', '***', '*')."""
+    """Return True if line is a horizontal separator ('-----', '────────', '***', '*')."""
     t = s.strip()
     if not t:
         return False
     if t in ("*", "***", "* * *"):
         return True
-    return bool(re.match(r"^[-–—_]{3,20}$", t))
+    return bool(re.match(r"^[-–—_─]{3,20}$", t))
 
 
 def is_party_doc_title(s_asc: str) -> bool:

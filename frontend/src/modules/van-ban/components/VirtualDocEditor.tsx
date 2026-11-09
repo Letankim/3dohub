@@ -267,14 +267,20 @@ export const VirtualDocEditor: React.FC<VirtualDocEditorProps> = ({
   };
 
   const handleCopyMsoWordFormat = async () => {
-    // Generate live MSO HTML from current A4 canvas so all immediate edits are preserved
-    const liveInner = a4SheetRef.current?.innerHTML || normResult?.a4_preview_html || '';
+    // Extract inner content from interactive A4 sheet without outer canvas wrapper styles
+    const sheetEl =
+      a4SheetRef.current?.querySelector<HTMLElement>('.a4-preview-sheet, .a4-sheet') ||
+      a4SheetRef.current;
+    const liveInner = sheetEl ? sheetEl.innerHTML : normResult?.a4_preview_html || '';
     const msoHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset='utf-8'>
 <style>
 @page Section1 {size:21.0cm 29.7cm; margin:2.0cm 1.5cm 2.0cm 3.0cm; mso-header-margin:1.0cm; mso-footer-margin:1.0cm; mso-title-page:yes;}
 div.Section1 {page:Section1; font-family:'Times New Roman',serif;}
 table {border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;}
+u {text-decoration:underline;}
+b, strong {font-weight:bold;}
+i, em {font-style:italic;}
 </style></head>
 <body><div class='Section1'>${liveInner}</div></body></html>`;
 

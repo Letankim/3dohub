@@ -226,10 +226,20 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         p_s = doc.add_paragraph()
         p_s.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_s.paragraph_format.space_before = Pt(2)
-        p_s.paragraph_format.space_after = Pt(6)
+        p_s.paragraph_format.space_after = Pt(2)
         _add_runs_with_placeholder_highlight(
-            p_s, tb["summary"], nums["SUMMARY_SIZE"], bold=True, underline=True
+            p_s, tb["summary"], nums["SUMMARY_SIZE"], bold=True, underline=False
         )
+
+    if tb.get("title") or tb.get("summary"):
+        p_sep = doc.add_paragraph()
+        p_sep.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_sep.paragraph_format.space_before = Pt(0)
+        p_sep.paragraph_format.space_after = Pt(8)
+        r_sep = p_sep.add_run("────────")
+        r_sep.font.name = "Times New Roman"
+        r_sep.font.size = Pt(11)
+        r_sep.bold = True
 
     # Kính gửi
     kg = norm_doc["kinh_gui"]

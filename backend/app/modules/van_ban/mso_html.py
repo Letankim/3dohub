@@ -15,6 +15,23 @@ def _highlight_brackets_html(text: str) -> str:
     )
 
 
+def _format_run(
+    text: str,
+    bold: bool = False,
+    italic: bool = False,
+    underline: bool = False,
+) -> str:
+    """Wrap highlighted text in semantic HTML tags for 100% MS Word & Google Docs fidelity."""
+    res = _highlight_brackets_html(text)
+    if bold:
+        res = f"<b>{res}</b>"
+    if italic:
+        res = f"<i>{res}</i>"
+    if underline:
+        res = f'<u style="text-decoration:underline;">{res}</u>'
+    return res
+
+
 def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     """Build the core document tables and paragraphs with inline MSO + CSS styles."""
     prof = norm_doc["profile"]
@@ -48,35 +65,38 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     for idx, org in enumerate(org_lines):
         is_bold = (idx == len(org_lines) - 1) or len(org_lines) == 1
         weight = "bold" if is_bold else "normal"
+        inner = _format_run(org, bold=is_bold)
         left_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{organ_size}pt;font-weight:{weight};line-height:1.25;">'
-            f"{_highlight_brackets_html(org)}</p>"
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{organ_size}pt;font-weight:{weight};line-height:1.25;">{inner}</p>'
         )
 
     if is_dang:
         left_parts.append(
-            f'<p style="margin:2pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{organ_size}pt;line-height:1.1;">*</p>'
+            f'<p align="center" style="margin:2pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{organ_size}pt;line-height:1.1;"><b>*</b></p>'
         )
     elif org_lines and bools["ORGAN_UNDERLINE"]:
         left_parts.append(
-            '<div style="width:38%;margin:2pt auto 4pt auto;border-bottom:1pt solid #000;"></div>'
+            '<p align="center" style="margin:1pt auto 3pt auto;text-align:center;'
+            'font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;color:#000000;">'
+            '<b>─────</b></p>'
         )
 
     if hdr.get("doc_number"):
         left_parts.append(
-            f'<p style="margin:2pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'<p align="center" style="margin:2pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{doc_num_size}pt;line-height:1.25;">'
-            f'{_highlight_brackets_html(hdr["doc_number"])}</p>'
+            f'{_format_run(hdr["doc_number"])}</p>'
         )
 
     if hdr.get("cv_summary"):
-        cv_it = "italic" if bools["CV_SUMMARY_ITALIC"] else "normal"
+        cv_it = bools["CV_SUMMARY_ITALIC"]
+        style_it = "italic" if cv_it else "normal"
         left_parts.append(
-            f'<p style="margin:2pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["CV_SUMMARY_SIZE"]}pt;font-style:{cv_it};line-height:1.2;">'
-            f'{_highlight_brackets_html(hdr["cv_summary"])}</p>'
+            f'<p align="center" style="margin:2pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{nums["CV_SUMMARY_SIZE"]}pt;font-style:{style_it};line-height:1.2;">'
+            f'{_format_run(hdr["cv_summary"], italic=cv_it)}</p>'
         )
 
     # Right Header Cell: Motto + Sub-motto + Line + Date
@@ -84,30 +104,28 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     right_parts: list[str] = []
     motto_lines = hdr.get("motto_lines", [])
     if is_dang and motto_lines:
+        inner_motto = _format_run(motto_lines[0], bold=True, underline=True)
         right_parts.append(
-            f'<p style="margin:0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["PARTY_MOTTO_SIZE"]}pt;font-weight:bold;line-height:1.25;">'
-            f'<span style="display:inline-block;border-bottom:1pt solid #000;padding-bottom:3pt;">'
-            f"{html.escape(motto_lines[0])}</span></p>"
+            f'<p align="{right_align}" style="margin:0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
+            f'font-size:{nums["PARTY_MOTTO_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_motto}</p>'
         )
     elif len(motto_lines) >= 2:
+        inner_qh = _format_run(motto_lines[0], bold=True)
+        inner_tn = _format_run(motto_lines[1], bold=True, underline=True)
         right_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["QH_SIZE"]}pt;font-weight:bold;line-height:1.25;">'
-            f"{html.escape(motto_lines[0])}</p>"
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{nums["QH_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_qh}</p>'
         )
         right_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["TN_SIZE"]}pt;font-weight:bold;line-height:1.25;">'
-            f'<span style="display:inline-block;border-bottom:1pt solid #000;padding-bottom:3pt;">'
-            f"{html.escape(motto_lines[1])}</span></p>"
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{nums["TN_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_tn}</p>'
         )
 
     if hdr.get("date_line"):
+        inner_date = _format_run(hdr["date_line"], italic=True)
         right_parts.append(
-            f'<p style="margin:4pt 0 0 0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
-            f'font-size:{date_size}pt;font-style:italic;line-height:1.25;">'
-            f'{_highlight_brackets_html(hdr["date_line"])}</p>'
+            f'<p align="{right_align}" style="margin:4pt 0 0 0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
+            f'font-size:{date_size}pt;font-style:italic;line-height:1.25;">{inner_date}</p>'
         )
 
     header_table_html = (
@@ -124,48 +142,52 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     # Title & Summary Block
     title_parts: list[str] = []
     if title_blk.get("title"):
+        inner_title = _format_run(title_blk["title"], bold=True)
         title_parts.append(
-            f'<p style="margin:12pt 0 2pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{title_size}pt;font-weight:bold;line-height:1.25;">'
-            f'{_highlight_brackets_html(title_blk["title"])}</p>'
+            f'<p align="center" style="margin:12pt 0 2pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{title_size}pt;font-weight:bold;line-height:1.25;">{inner_title}</p>'
         )
     if title_blk.get("summary"):
+        inner_sum = _format_run(title_blk["summary"], bold=True)
         title_parts.append(
-            f'<p style="margin:0 0 4pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{summary_size}pt;font-weight:bold;line-height:1.25;">'
-            f'{_highlight_brackets_html(title_blk["summary"])}</p>'
+            f'<p align="center" style="margin:0 0 4pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{summary_size}pt;font-weight:bold;line-height:1.25;">{inner_sum}</p>'
         )
     if title_blk.get("title") or title_blk.get("summary"):
         title_parts.append(
-            '<div style="width:26%;margin:3pt auto 10pt auto;border-bottom:1pt solid #000;"></div>'
+            '<p align="center" style="margin:2pt auto 8pt auto;text-align:center;'
+            'font-family:\'Times New Roman\',serif;font-size:11pt;line-height:1;color:#000000;">'
+            '<b>────────</b></p>'
         )
 
     # Kính gửi Block
     kg_html = ""
     if kg.get("prefix"):
-        kg_it = "italic" if bools["KINH_GUI_ITALIC"] else "normal"
+        kg_it = bools["KINH_GUI_ITALIC"]
+        style_it = "italic" if kg_it else "normal"
+        prefix_html = _format_run(kg["prefix"], italic=kg_it)
         kg_items = kg.get("items", [])
         if len(kg_items) <= 1:
             rec_text = kg_items[0] if kg_items else ""
+            rec_bold = not is_dang
+            rec_html = _format_run(rec_text, bold=rec_bold)
             kg_html = (
                 f'<p style="margin:6pt 0 8pt 0;text-indent:1.27cm;text-align:justify;'
                 f'font-family:\'Times New Roman\',serif;font-size:{body_size}pt;line-height:1.3;">'
-                f'<span style="font-style:{kg_it};">{html.escape(kg["prefix"])}</span> '
-                f'<span style="font-weight:{"normal" if is_dang else "bold"};">'
-                f"{_highlight_brackets_html(rec_text)}</span></p>"
+                f"{prefix_html} {rec_html}</p>"
             )
         else:
             rows_kg = "".join(
                 f'<p style="margin:0 0 2pt 0;font-family:\'Times New Roman\',serif;'
-                f'font-size:{body_size}pt;line-height:1.3;">{_highlight_brackets_html(it)}</p>'
+                f'font-size:{body_size}pt;line-height:1.3;">{_format_run(it)}</p>'
                 for it in kg_items
             )
             kg_html = (
                 '<table style="width:100%;border-collapse:collapse;border:none;margin:6pt 0 8pt 0;">'
                 "<tr>"
                 f'<td style="width:26%;vertical-align:top;text-align:right;padding-right:6pt;border:none;'
-                f'font-family:\'Times New Roman\',serif;font-size:{body_size}pt;font-style:{kg_it};">'
-                f'{html.escape(kg["prefix"])}</td>'
+                f'font-family:\'Times New Roman\',serif;font-size:{body_size}pt;font-style:{style_it};">'
+                f'{prefix_html}</td>'
                 f'<td style="width:74%;vertical-align:top;border:none;">{rows_kg}</td>'
                 "</tr></table>"
             )
@@ -197,10 +219,11 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
                     c_txt = r_cells[c_i] if c_i < len(r_cells) else ""
                     c_align = "center" if r_i == 0 else "left"
                     c_weight = "bold" if r_i == 0 else "normal"
+                    cell_inner = _format_run(c_txt, bold=(r_i == 0))
                     tds.append(
                         f'<td style="border:1px solid #000;padding:4pt 6pt;text-align:{c_align};'
                         f'font-weight:{c_weight};font-family:\'Times New Roman\',serif;font-size:13pt;">'
-                        f"{_highlight_brackets_html(c_txt)}</td>"
+                        f"{cell_inner}</td>"
                     )
                 tr_html_parts.append(f"<tr>{''.join(tds)}</tr>")
             body_html_list.append(
@@ -219,14 +242,14 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
             else ""
         )
         if p["kind"] == "DIEU" and p.get("prefix_bold"):
-            inner = (
-                f'<b>{_highlight_brackets_html(p["prefix_bold"])}</b> '
-                f'{_highlight_brackets_html(p.get("rest_text", ""))}'
-            )
+            prefix_part = _format_run(p["prefix_bold"], bold=True)
+            rest_part = _format_run(p.get("rest_text", ""))
+            inner = f"{prefix_part} {rest_part}"
         else:
-            inner = _highlight_brackets_html(p["text"])
+            inner = _format_run(p["text"], bold=p["bold"], italic=p["italic"])
+
         body_html_list.append(
-            f'<p style="margin:6pt 0 0 0;{indent}text-align:{align};{keep_next}'
+            f'<p align="{align}" style="margin:6pt 0 0 0;{indent}text-align:{align};{keep_next}'
             f'font-family:\'Times New Roman\',serif;font-size:{p["size_pt"]}pt;'
             f'font-weight:{weight};font-style:{style};line-height:1.35;">{inner}</p>'
         )
@@ -236,55 +259,58 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     left_ftr_parts: list[str] = []
     if ftr.get("left_signer_role"):
         left_ftr_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{sign_size}pt;font-weight:bold;">'
-            f'{_highlight_brackets_html(ftr["left_signer_role"])}</p>'
+            f'{_format_run(ftr["left_signer_role"], bold=True)}</p>'
         )
         if ftr.get("left_signer_name"):
             left_ftr_parts.append(
-                f'<p style="margin:42pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
+                f'<p align="center" style="margin:42pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
                 f'font-size:{sign_size}pt;font-weight:bold;">'
-                f'{_highlight_brackets_html(ftr["left_signer_name"])}</p>'
+                f'{_format_run(ftr["left_signer_name"], bold=True)}</p>'
             )
     elif ftr.get("noi_nhan_items"):
         nn_u = "underline" if bools["NN_LABEL_UNDERLINE"] else "none"
         nn_b = "bold" if bools["NN_LABEL_BOLD"] else "normal"
         nn_i = "italic" if bools["NN_LABEL_ITALIC"] else "normal"
+        lbl = _format_run(
+            "Nơi nhận:",
+            bold=bools["NN_LABEL_BOLD"],
+            italic=bools["NN_LABEL_ITALIC"],
+            underline=bools["NN_LABEL_UNDERLINE"],
+        )
         left_ftr_parts.append(
             f'<p style="margin:0 0 2pt 0;font-family:\'Times New Roman\',serif;'
             f'font-size:{nn_label_size}pt;font-weight:{nn_b};font-style:{nn_i};'
-            f'text-decoration:{nn_u};">Nơi nhận:</p>'
+            f'text-decoration:{nn_u};">{lbl}</p>'
         )
         for item in ftr["noi_nhan_items"]:
             left_ftr_parts.append(
                 f'<p style="margin:0;font-family:\'Times New Roman\',serif;'
                 f'font-size:{nn_item_size}pt;line-height:1.25;">'
-                f"{_highlight_brackets_html(item)}</p>"
+                f"{_format_run(item)}</p>"
             )
 
     right_ftr_parts: list[str] = []
     if ftr.get("sign_auth"):
         right_ftr_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{sign_size}pt;font-weight:bold;line-height:1.25;">'
-            f'{_highlight_brackets_html(ftr["sign_auth"])}</p>'
+            f'{_format_run(ftr["sign_auth"], bold=True)}</p>'
         )
     if ftr.get("sign_role"):
-        role_b = (
-            "bold"
-            if (not ftr.get("sign_auth") or bools["ROLE_UNDER_AUTH_BOLD"])
-            else "normal"
-        )
+        is_role_bold = not ftr.get("sign_auth") or bools["ROLE_UNDER_AUTH_BOLD"]
+        role_weight = "bold" if is_role_bold else "normal"
         right_ftr_parts.append(
-            f'<p style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{sign_size}pt;font-weight:{role_b};line-height:1.25;">'
-            f'{_highlight_brackets_html(ftr["sign_role"])}</p>'
+            f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'font-size:{sign_size}pt;font-weight:{role_weight};line-height:1.25;">'
+            f'{_format_run(ftr["sign_role"], bold=is_role_bold)}</p>'
         )
     if ftr.get("sign_name"):
         right_ftr_parts.append(
-            f'<p style="margin:42pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
+            f'<p align="center" style="margin:42pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{sign_size}pt;font-weight:bold;line-height:1.25;">'
-            f'{_highlight_brackets_html(ftr["sign_name"])}</p>'
+            f'{_format_run(ftr["sign_name"], bold=True)}</p>'
         )
 
     footer_table_html = (
@@ -331,6 +357,9 @@ def render_mso_clipboard_html(norm_doc: dict[str, Any]) -> str:
         "@page Section1 {size:21.0cm 29.7cm; margin:2.0cm 1.5cm 2.0cm 3.0cm; mso-header-margin:1.0cm; mso-footer-margin:1.0cm; mso-title-page:yes;}"
         "div.Section1 {page:Section1; font-family:'Times New Roman',serif;}"
         "table {border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;}"
+        "u {text-decoration:underline;}"
+        "b, strong {font-weight:bold;}"
+        "i, em {font-style:italic;}"
         "</style></head>"
         f"<body><div class='Section1'>{inner}</div></body></html>"
     )
@@ -381,4 +410,3 @@ def render_normalized_plain_text(norm_doc: dict[str, Any]) -> str:
         lines.append(ftr["sign_name"])
 
     return "\n".join(lines)
-
