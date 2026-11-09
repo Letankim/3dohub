@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Select, Space, Tooltip, message } from 'antd';
+import { Alert, Button, Select, Tooltip, message } from 'antd';
 import {
   ThunderboltFilled,
   CopyOutlined,
@@ -20,9 +20,12 @@ import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { stripFootnotes } from '../utils/sfdt-utils';
 
-const SF_LICENSE = process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY || '';
-if (SF_LICENSE) registerLicense(SF_LICENSE);
-DocumentEditorContainerComponent.Inject(Toolbar);
+// Đăng ký module Toolbar một lần an toàn
+try {
+  DocumentEditorContainerComponent.Inject(Toolbar);
+} catch {
+  // Bỏ qua nếu đã inject trước đó
+}
 
 const TOOLBAR_ITEMS = [
   'Undo',
@@ -37,9 +40,6 @@ const TOOLBAR_ITEMS = [
   'PageSetup',
   'PageNumber',
   'Break',
-  'Separator',
-  'InsertFootnote',
-  'InsertEndnote',
   'Separator',
   'Find',
 ];
@@ -85,6 +85,35 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   const containerRef = useRef<DocumentEditorContainerComponent | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [ready, setReady] = useState(false);
+  const [hasLicense, setHasLicense] = useState<boolean>(true);
+
+  // Tự động nhận license từ NEXT_PUBLIC_ hoặc từ endpoint /api/license
+  useEffect(() => {
+    const envKey =
+      process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY ||
+      process.env.SYNCFUSION_LICENSE_KEY;
+
+    if (envKey) {
+      try {
+        registerLicense(envKey);
+        setHasLicense(true);
+      } catch {
+        // bỏ qua nếu đã đăng ký
+      }
+    } else {
+      fetch('/api/license')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.key) {
+            registerLicense(data.key);
+            setHasLicense(true);
+          } else {
+            setHasLicense(false);
+          }
+        })
+        .catch(() => setHasLicense(false));
+    }
+  }, []);
 
   /** Mở tài liệu SFDT đã chuẩn hóa (có footnote thật, số trang) vào trình soạn thảo. */
   useEffect(() => {
@@ -105,10 +134,14 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   const getEditorText = (): string => {
     const editor = containerRef.current?.documentEditor;
     if (!editor) return rawText;
-    editor.selection.selectAll();
-    const text = (editor.selection.text || '').replace(/\r/g, '\n').trim();
-    editor.selection.moveToDocumentStart();
-    return text.length > 10 ? text : rawText;
+    try {
+      editor.selection.selectAll();
+      const text = (editor.selection.text || '').replace(/\r/g, '\n').trim();
+      editor.selection.moveToDocumentStart();
+      return text.length > 10 ? text : rawText;
+    } catch {
+      return rawText;
+    }
   };
 
   const handleNormalize = () => {
@@ -128,8 +161,12 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     const editor = containerRef.current?.documentEditor;
     if (!editor) return;
     const base = (normResult?.docx_filename || 'VanBan_ChuanHoa_3DoHub.docx').replace(/\.docx$/i, '');
-    editor.save(base, 'Docx');
-    message.success(`Đã tải về tệp ${base}.docx`);
+    try {
+      editor.save(base, 'Docx');
+      message.success(`Đã tải về tệp ${base}.docx`);
+    } catch {
+      message.error('Không thể lưu file qua Syncfusion, hãy chuyển sang Trình soạn thảo cơ bản để tải.');
+    }
   };
 
   const handleCopyWord = async () => {
@@ -222,27 +259,27 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         </Button>
       </div>
 
-      {!SF_LICENSE && (
+      {!hasLicense && (
         <Alert
-          type="warning"
+          type="info"
           showIcon
           banner
-          message="Chưa cấu hình license Syncfusion (NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY) — đang chạy bản dùng thử."
+          message="Chưa cấu hình NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY hoặc SYNCFUSION_LICENSE_KEY — đang chạy chế độ Community dùng thử."
         />
       )}
 
-      <DocumentEditorContainerComponent
-        ref={containerRef}
-        id="3dohub-sf-doc-editor"
-        height="calc(100vh - 230px)"
-        style={{ minHeight: 620 }}
-        enableToolbar
-        toolbarItems={TOOLBAR_ITEMS as never}
-        showPropertiesPane={false}
-        enableSpellCheck={false}
-        created={() => setReady(true)}
-      />
+      <div style={{ height: 'calc(100vh - 230px)', minHeight: 620 }}>
+        <DocumentEditorContainerComponent
+          ref={containerRef}
+          id="3dohub-sf-doc-editor"
+          height="100%"
+          enableToolbar
+          toolbarItems={TOOLBAR_ITEMS as never}
+          showPropertiesPane={false}
+          enableSpellCheck={false}
+          created={() => setReady(true)}
+        />
+      </div>
     </div>
   );
 };
-

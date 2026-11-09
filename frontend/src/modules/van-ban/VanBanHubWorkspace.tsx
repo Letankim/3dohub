@@ -10,6 +10,7 @@ import { ApiErrorAlert } from '@/components/common/ApiErrorAlert';
 import { HeroOverviewSection } from './components/HeroOverviewSection';
 import { UtilitiesHubPage } from './components/UtilitiesHubPage';
 import { VirtualDocEditor } from './components/VirtualDocEditor';
+import { EditorErrorBoundary } from '@/components/common/EditorErrorBoundary';
 
 const SyncfusionDocEditor = dynamic(
   () => import('./components/SyncfusionDocEditor').then((m) => m.SyncfusionDocEditor),
@@ -102,7 +103,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   const [selectedProfile, setSelectedProfile] = useState<string>('AUTO');
   const [rawText, setRawText] = useState<string>(DEFAULT_SAMPLE_DOC);
   const [normResult, setNormResult] = useState<NormalizedDocResult | null>(null);
-  const [editorEngine, setEditorEngine] = useState<'SYNCFUSION' | 'BASIC'>('SYNCFUSION');
+  const [editorEngine, setEditorEngine] = useState<'SYNCFUSION' | 'BASIC'>('BASIC');
   const [unitInfo, setUnitInfo] = useState<UnitConfig>(DEFAULT_UNIT_CONFIG);
   const [loading, setLoading] = useState<boolean>(false);
   const [extractingUnit, setExtractingUnit] = useState<boolean>(false);
@@ -481,28 +482,71 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
               value={editorEngine}
               onChange={(v) => setEditorEngine(v as 'SYNCFUSION' | 'BASIC')}
               options={[
-                { label: 'Trình soạn thảo Word (Syncfusion)', value: 'SYNCFUSION' },
-                { label: 'Trình soạn thảo cơ bản', value: 'BASIC' },
+                { label: 'Trình soạn thảo cơ bản (Nhanh & Tương thích cao)', value: 'BASIC' },
+                { label: 'Trình soạn thảo Word (Syncfusion Office)', value: 'SYNCFUSION' },
               ]}
             />
           </div>
-          {React.createElement(editorEngine === 'SYNCFUSION' ? SyncfusionDocEditor : VirtualDocEditor, {
-            profiles,
-            selectedProfile,
-            onChangeProfile: (pid: string, currentText?: string) => {
-              setSelectedProfile(pid);
-              handleNormalize(currentText || rawText, pid);
-            },
-            rawText,
-            onChangeRawText: setRawText,
-            normResult,
-            onNormalize: (customText?: string) => handleNormalize(customText),
-            onUploadDocx: handleUploadDocx,
-            onOpenTemplatesModal: () => setTemplateModalOpen(true),
-            onOpenUnitModal: () => setUnitModalOpen(true),
-            onOpenLogicModal: () => setLogicModalOpen(true),
-            loading,
-          })}
+          {editorEngine === 'SYNCFUSION' ? (
+            <EditorErrorBoundary
+              onErrorFallback={() => setEditorEngine('BASIC')}
+              fallback={
+                <VirtualDocEditor
+                  profiles={profiles}
+                  selectedProfile={selectedProfile}
+                  onChangeProfile={(pid, currentText) => {
+                    setSelectedProfile(pid);
+                    handleNormalize(currentText || rawText, pid);
+                  }}
+                  rawText={rawText}
+                  onChangeRawText={setRawText}
+                  normResult={normResult}
+                  onNormalize={(customText) => handleNormalize(customText)}
+                  onUploadDocx={handleUploadDocx}
+                  onOpenTemplatesModal={() => setTemplateModalOpen(true)}
+                  onOpenUnitModal={() => setUnitModalOpen(true)}
+                  onOpenLogicModal={() => setLogicModalOpen(true)}
+                  loading={loading}
+                />
+              }
+            >
+              <SyncfusionDocEditor
+                profiles={profiles}
+                selectedProfile={selectedProfile}
+                onChangeProfile={(pid, currentText) => {
+                  setSelectedProfile(pid);
+                  handleNormalize(currentText || rawText, pid);
+                }}
+                rawText={rawText}
+                onChangeRawText={setRawText}
+                normResult={normResult}
+                onNormalize={(customText) => handleNormalize(customText)}
+                onUploadDocx={handleUploadDocx}
+                onOpenTemplatesModal={() => setTemplateModalOpen(true)}
+                onOpenUnitModal={() => setUnitModalOpen(true)}
+                onOpenLogicModal={() => setLogicModalOpen(true)}
+                loading={loading}
+              />
+            </EditorErrorBoundary>
+          ) : (
+            <VirtualDocEditor
+              profiles={profiles}
+              selectedProfile={selectedProfile}
+              onChangeProfile={(pid, currentText) => {
+                setSelectedProfile(pid);
+                handleNormalize(currentText || rawText, pid);
+              }}
+              rawText={rawText}
+              onChangeRawText={setRawText}
+              normResult={normResult}
+              onNormalize={(customText) => handleNormalize(customText)}
+              onUploadDocx={handleUploadDocx}
+              onOpenTemplatesModal={() => setTemplateModalOpen(true)}
+              onOpenUnitModal={() => setUnitModalOpen(true)}
+              onOpenLogicModal={() => setLogicModalOpen(true)}
+              loading={loading}
+            />
+          )}
         </>
       )}
 
