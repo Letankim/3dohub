@@ -253,6 +253,16 @@ def normalize_document_lines(
                 ):
                     summary_text = cleaned[idx]
                     idx += 1
+                    # Trích yếu có thể xuống nhiều dòng (dòng tiếp bắt đầu bằng chữ thường)
+                    while (
+                        idx < n
+                        and not is_separator_line(cleaned[idx])
+                        and cleaned[idx][:1].islower()
+                        and len(cleaned[idx]) < 220
+                        and not summary_text.rstrip().endswith((".", ";", ":"))
+                    ):
+                        summary_text = f"{summary_text.rstrip()} {cleaned[idx].strip()}"
+                        idx += 1
                     if idx < n and is_separator_line(cleaned[idx]):
                         idx += 1
 
