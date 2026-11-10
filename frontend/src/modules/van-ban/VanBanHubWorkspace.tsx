@@ -317,10 +317,9 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         }
 
         // 3. Không tự động chuẩn hóa khi mở trang; người dùng chủ động bấm 'Chuẩn hóa'
-      } catch (err) {
-        if (err instanceof HubApiException) {
-          setApiError(err);
-        }
+      } catch {
+        // Nếu backend đang khởi động sau deploy (cold start), không hiện lỗi gây gián đoạn giao diện.
+        // Đã có sẵn FALLBACK_PROFILES để người dùng sử dụng ngay lập tức.
       }
     };
     initData();
@@ -449,7 +448,11 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       onOpenCommand={() => setCommandOpen(true)}
       onNavigateBreadcrumb={handleNavigateBreadcrumb}
     >
-      <ApiErrorAlert error={apiError} onClose={() => setApiError(null)} />
+      <ApiErrorAlert
+        error={apiError}
+        onClose={() => setApiError(null)}
+        onRetry={() => handleNormalize()}
+      />
 
       {workspaceTab === 'HERO_HOME' ? (
         <HeroOverviewSection

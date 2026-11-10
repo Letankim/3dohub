@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Alert, Typography } from 'antd';
+import { Alert, Button, Typography } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import { HubApiException } from '@/services/api-client';
 
 const { Text } = Typography;
@@ -9,9 +10,10 @@ const { Text } = Typography;
 interface ApiErrorAlertProps {
   error: HubApiException | null;
   onClose?: () => void;
+  onRetry?: () => void;
 }
 
-export const ApiErrorAlert: React.FC<ApiErrorAlertProps> = ({ error, onClose }) => {
+export const ApiErrorAlert: React.FC<ApiErrorAlertProps> = ({ error, onClose, onRetry }) => {
   if (!error) return null;
 
   const extraMessages = (error.errors?.details || [])
@@ -24,6 +26,20 @@ export const ApiErrorAlert: React.FC<ApiErrorAlertProps> = ({ error, onClose }) 
       showIcon
       closable={Boolean(onClose)}
       onClose={onClose}
+      action={
+        onRetry && (
+          <Button
+            size="small"
+            type="primary"
+            danger
+            icon={<ReloadOutlined />}
+            onClick={onRetry}
+            style={{ fontWeight: 500 }}
+          >
+            Thử lại ngay
+          </Button>
+        )
+      }
       style={{ marginBottom: 12, borderRadius: 4, border: '1px solid #FCA5A5' }}
       message={
         <Text strong style={{ color: '#991B1B', fontSize: 13.5 }}>

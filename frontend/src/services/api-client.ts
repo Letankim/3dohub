@@ -53,13 +53,16 @@ export class HubApiException extends Error {
 
 export const axiosClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
     'ngrok-skip-browser-warning': 'true',
   },
 });
+
+const MAX_AUTO_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 1500;
 
 // Outgoing Request Interceptor: Sign every request with SHA-256 Checksum & HMAC-SHA256 Signature
 axiosClient.interceptors.request.use((config) => {
@@ -130,16 +133,35 @@ axiosClient.interceptors.response.use(
     }
     return response;
   },
-  (error: AxiosError<ApiResponse<null>>) => {
+  async (error: AxiosError<ApiResponse<null>>) => {
+    const config = error.config as (typeof error.config & { __retryCount?: number });
+    const status = error.response?.status;
+    const isTransient =
+      !error.response ||
+      status === 502 ||
+      status === 503 ||
+      status === 504 ||
+      error.code === 'ECONNABORTED' ||
+      error.message?.includes('timeout') ||
+      error.message?.includes('Network Error');
+
+    // Tự động thử lại tối đa 2 lần khi backend khởi động sau deploy (cold start) hoặc mạng chập chờn
+    if (config && isTransient && (config.__retryCount || 0) < MAX_AUTO_RETRIES) {
+      config.__retryCount = (config.__retryCount || 0) + 1;
+      const delay = BASE_RETRY_DELAY_MS * config.__retryCount;
+      await new Promise((r) => setTimeout(r, delay));
+      return axiosClient.request(config);
+    }
+
     const respData = error.response?.data;
-    const status = error.response?.status || 500;
+    const errStatus = status || 500;
     if (respData && respData.errors) {
       return Promise.reject(
         new HubApiException(
           respData.message || 'Dữ liệu gửi lên không hợp lệ',
           respData.errors,
           respData.request_id || 'req_unknown',
-          status
+          errStatus
         )
       );
     }
@@ -153,13 +175,13 @@ axiosClient.interceptors.response.use(
               field: 'connection',
               code: 'CONNECTION_INTERRUPTED',
               message:
-                'Hệ thống đang bận hoặc đường truyền gián đoạn, vui lòng thử lại sau ít giây.',
+                'Máy chủ đang khởi động hoặc đường truyền gián đoạn, vui lòng bấm thử lại.',
               rejected_value: null,
             },
           ],
         },
         'req_service_busy',
-        status
+        errStatus
       )
     );
   }
