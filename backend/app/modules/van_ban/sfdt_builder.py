@@ -123,14 +123,14 @@ def _table(rows: list[list[list[dict[str, Any]]]], widths: list[float], visible:
     }
 
 
-def _page_number_header() -> dict[str, Any]:
-    cf = _cf(13)
+def _page_number_header(size: float = 13.5) -> dict[str, Any]:
+    cf = _cf(size)
     return {"blocks": [_para([
         {"hasFieldEnd": True, "fieldType": 0, "characterFormat": cf},
-        {"text": " PAGE ", "characterFormat": cf},
-        {"fieldType": 1, "characterFormat": cf},
-        {"text": "2", "characterFormat": cf},
+        {"text": "PAGE  \\* MERGEFORMAT", "characterFormat": cf},
         {"fieldType": 2, "characterFormat": cf},
+        {"text": "1", "characterFormat": cf},
+        {"fieldType": 1, "characterFormat": cf},
     ], align="Center")]}
 
 
@@ -255,11 +255,12 @@ def build_sfdt(norm_doc: dict[str, Any]) -> dict[str, Any]:
     """Build the SFDT JSON dict for Syncfusion DocumentEditor."""
     b = _Builder(norm_doc.get("footnotes") or [])
     blocks = _header_blocks(b, norm_doc) + _body_blocks(b, norm_doc) + _footer_blocks(b, norm_doc)
+    nums = norm_doc["profile"]["numbers"]
     return {
         "sections": [{
             "blocks": blocks,
             "headersFooters": {
-                "header": _page_number_header(),
+                "header": _page_number_header(nums.get("PAGE_NUMBER_SIZE", 13.5)),
                 "firstPageHeader": {"blocks": [_para([])]},
             },
             "sectionFormat": {

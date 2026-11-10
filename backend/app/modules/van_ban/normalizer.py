@@ -220,7 +220,7 @@ def normalize_document_lines(
             continue
 
         # Nếu dòng trùng với nội dung của footnote đã biết -> không giữ làm đoạn văn thân bài
-        if existing_texts and any(s == t or (len(t) > 15 and s.endswith(t)) for t in existing_texts):
+        if existing_texts and any(s == t for t in existing_texts):
             continue
 
         if any(c in s for c in _SUPERSCRIPTS):

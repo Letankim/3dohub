@@ -54,9 +54,20 @@ def _extract_p_text_with_footnotes(
     """Extract text from a <w:p> element, converting <w:footnoteReference> and superscript runs to [^n]."""
     parts: list[str] = []
 
+    # Check for paragraph-level pageBreakBefore
+    pPr = p_el.find(f"{{{_W_NS}}}pPr")
+    if pPr is not None and pPr.find(f"{{{_W_NS}}}pageBreakBefore") is not None:
+        parts.append("[PAGE_BREAK]\n")
+
     for child in p_el:
         tag = child.tag.split("}")[-1]
         if tag == "r":
+            # Check for page break in run: <w:br w:type="page"/>
+            for br in child.findall(f"{{{_W_NS}}}br"):
+                b_type = br.attrib.get(f"{{{_W_NS}}}type") or br.attrib.get("type")
+                if b_type == "page":
+                    parts.append("\n[PAGE_BREAK]\n")
+
             fn_ref = child.find(f"{{{_W_NS}}}footnoteReference")
             if fn_ref is not None:
                 fn_id = fn_ref.attrib.get(f"{{{_W_NS}}}id") or fn_ref.attrib.get("id")
@@ -133,13 +144,20 @@ def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
     id_to_seq: dict[str, int] = {}
     ordered_footnotes: list[tuple[str, str]] = []
 
+    def _add_p_line(p_text: str) -> None:
+        if not p_text:
+            return
+        for sub in p_text.splitlines():
+            s_clean = sub.strip()
+            if s_clean:
+                lines.append(s_clean)
+
     # Iterate through document body elements in document order (tables and paragraphs)
     for child in doc.element.body.iterchildren():
         tag = child.tag.split("}")[-1]
         if tag == "p":
             full_p = _extract_p_text_with_footnotes(child, footnotes_map, id_to_seq, ordered_footnotes)
-            if full_p:
-                lines.append(full_p)
+            _add_p_line(full_p)
         elif tag == "tbl":
             rows_els = list(child.iter(qn("w:tr")))
             # If table has >= 2 rows, extract as pipe-delimited body data table rows
@@ -159,8 +177,7 @@ def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
                 for cell in child.iter(qn("w:tc")):
                     for p_el in cell.iter(qn("w:p")):
                         full_p = _extract_p_text_with_footnotes(p_el, footnotes_map, id_to_seq, ordered_footnotes)
-                        if full_p:
-                            lines.append(full_p)
+                        _add_p_line(full_p)
 
     # Append referenced footnotes as "[^n]: text" lines at the end of the document
     for seq_str, fn_text in ordered_footnotes:
@@ -173,23 +190,25 @@ def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
             id_to_seq[fn_id] = seq_num
             lines.append(f"[^{seq_num}]: {fn_text}")
 
-    # Identify referenced superscript footnote numbers in document body
-    all_body_text = "\n".join(lines)
-    ref_nums = set(re.findall(r"\[\^(\d+)\]", all_body_text))
-    if ref_nums:
-        cleaned_lines: list[str] = []
-        for l in lines:
-            m_fn_body = re.match(r"^(\d+|[¹²³⁴⁵⁶⁷⁸⁹]+)[\.\:\s\t]+(.+)$", l.strip())
-            if (
-                m_fn_body
-                and m_fn_body.group(1) in ref_nums
-                and not l.strip().lower().startswith(("điều", "dieu", "phần", "chương"))
-            ):
-                n_val = m_fn_body.group(1)
-                cleaned_lines.append(f"[^{n_val}]: {m_fn_body.group(2).strip()}")
-            else:
-                cleaned_lines.append(l)
-        lines = cleaned_lines
+    # Only if document did NOT have word/footnotes.xml, check for manual bottom footnotes with explicit bracket or superscript
+    if not footnotes_map and not ordered_footnotes:
+        all_body_text = "\n".join(lines)
+        ref_nums = set(re.findall(r"\[\^(\d+)\]", all_body_text))
+        if ref_nums:
+            cleaned_lines: list[str] = []
+            for l in lines:
+                m_fn_body = re.match(r"^(\[|\^)?(\d+|[¹²³⁴⁵⁶⁷⁸⁹]+)(\])?[\.\:\s\t]+(.+)$", l.strip())
+                if (
+                    m_fn_body
+                    and (m_fn_body.group(1) or m_fn_body.group(3) or any(c in m_fn_body.group(2) for c in _SUPERSCRIPT_MAP))
+                    and m_fn_body.group(2) in ref_nums
+                    and not l.strip().lower().startswith(("điều", "dieu", "phần", "chương"))
+                ):
+                    n_val = "".join(_SUPERSCRIPT_MAP.get(c, c) for c in m_fn_body.group(2))
+                    cleaned_lines.append(f"[^{n_val}]: {m_fn_body.group(4).strip()}")
+                else:
+                    cleaned_lines.append(l)
+            lines = cleaned_lines
 
     return lines
 
