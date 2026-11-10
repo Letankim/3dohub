@@ -239,6 +239,7 @@ def normalize_document_lines(
 
     # Step 0.3a & Step 3: Parse Header Zone (top of document before Title/Kính gửi/Body)
     organ_lines: list[str] = []
+    has_star = False
     doc_number = ""
     cv_summary = ""
     date_line = ""
@@ -259,6 +260,8 @@ def normalize_document_lines(
             idx += 1
             continue
         if is_separator_line(line):
+            if line.strip() in ("*", "***", "* * *"):
+                has_star = True
             idx += 1
             continue
         if is_doc_number_line(s_asc):
@@ -433,6 +436,7 @@ def normalize_document_lines(
         "profile": prof,
         "header": {
             "organ_lines": organ_lines,
+            "has_star": has_star,
             "doc_number": doc_number,
             "cv_summary": cv_summary,
             "motto_lines": motto_lines,

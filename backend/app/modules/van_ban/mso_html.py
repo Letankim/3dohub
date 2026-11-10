@@ -57,7 +57,13 @@ def _build_body_inner_html(norm_doc: dict[str, Any], mso: bool = False) -> str:
     nn_item_size = nums["NN_ITEM_SIZE"]
     sign_size = nums["SIGN_SIZE"]
 
-    left_w_pct = round(nums["HDR_LEFT_MM"] / (nums["HDR_LEFT_MM"] + nums["HDR_RIGHT_MM"]) * 100, 1)
+    left_mm = nums["HDR_LEFT_MM"]
+    right_mm = nums["HDR_RIGHT_MM"]
+    left_pt = round(left_mm * 72.0 / 25.4, 1)
+    right_pt = round(right_mm * 72.0 / 25.4, 1)
+    left_twips = round(left_mm * 56.6929)
+    right_twips = round(right_mm * 56.6929)
+    left_w_pct = round(left_mm / (left_mm + right_mm) * 100, 1)
     right_w_pct = round(100.0 - left_w_pct, 1)
 
     # Left Header Cell: Organ lines + separator + Doc Number + CV Summary
@@ -72,7 +78,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any], mso: bool = False) -> str:
             f'font-size:{organ_size}pt;font-weight:{weight};line-height:1.25;white-space:nowrap;">{inner}</p>'
         )
 
-    if is_dang:
+    if hdr.get("has_star"):
         left_parts.append(
             f'<p align="center" style="margin:2pt 0;text-align:center;font-family:\'Times New Roman\',serif;'
             f'font-size:{organ_size}pt;line-height:1.1;"><b>*</b></p>'
@@ -130,14 +136,18 @@ def _build_body_inner_html(norm_doc: dict[str, Any], mso: bool = False) -> str:
         )
 
     header_table_html = (
-        '<table style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;mso-border-alt:none;'
-        'mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:12pt;" border="0" cellspacing="0" cellpadding="0">'
-        "<tr>"
-        f'<td style="width:{left_w_pct}%;vertical-align:top;padding:0 4pt 0 0;border:none;mso-border-alt:none;">'
+        f'<table style="width:100%;mso-table-layout-alt:fixed;table-layout:fixed;border-collapse:collapse;border:none;mso-border-alt:none;'
+        f'mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:12pt;" border="0" cellspacing="0" cellpadding="0">'
+        f'<colgroup>'
+        f'<col width="{int(left_pt)}" style="width:{left_pt}pt;mso-width-source:userset;mso-width-alt:{left_twips};" />'
+        f'<col width="{int(right_pt)}" style="width:{right_pt}pt;mso-width-source:userset;mso-width-alt:{right_twips};" />'
+        f'</colgroup>'
+        f'<tr>'
+        f'<td width="{int(left_pt)}" style="width:{left_pt}pt;mso-width-source:userset;mso-width-alt:{left_twips};vertical-align:top;padding:0 4pt 0 0;border:none;mso-border-alt:none;">'
         f'{"".join(left_parts)}</td>'
-        f'<td style="width:{right_w_pct}%;vertical-align:top;padding:0 0 0 4pt;border:none;mso-border-alt:none;">'
+        f'<td width="{int(right_pt)}" style="width:{right_pt}pt;mso-width-source:userset;mso-width-alt:{right_twips};vertical-align:top;padding:0 0 0 4pt;border:none;mso-border-alt:none;">'
         f'{"".join(right_parts)}</td>'
-        "</tr></table>"
+        f'</tr></table>'
     )
 
     # Title & Summary Block
@@ -315,13 +325,17 @@ def _build_body_inner_html(norm_doc: dict[str, Any], mso: bool = False) -> str:
         )
 
     footer_table_html = (
-        '<table style="width:100%;border-collapse:collapse;border:none;mso-border-alt:none;margin-top:14pt;page-break-inside:avoid;" border="0" cellspacing="0" cellpadding="0">'
-        "<tr>"
-        '<td style="width:50%;vertical-align:top;padding-right:6pt;border:none;mso-border-alt:none;">'
+        '<table style="width:100%;mso-table-layout-alt:fixed;table-layout:fixed;border-collapse:collapse;border:none;mso-border-alt:none;margin-top:14pt;page-break-inside:avoid;" border="0" cellspacing="0" cellpadding="0">'
+        '<colgroup>'
+        '<col width="234" style="width:233.8pt;mso-width-source:userset;mso-width-alt:4676;" />'
+        '<col width="234" style="width:233.8pt;mso-width-source:userset;mso-width-alt:4676;" />'
+        '</colgroup>'
+        '<tr>'
+        '<td width="234" style="width:233.8pt;mso-width-source:userset;mso-width-alt:4676;vertical-align:top;padding-right:6pt;border:none;mso-border-alt:none;">'
         f'{"".join(left_ftr_parts)}</td>'
-        '<td style="width:50%;vertical-align:top;padding-left:6pt;border:none;mso-border-alt:none;">'
+        '<td width="234" style="width:233.8pt;mso-width-source:userset;mso-width-alt:4676;vertical-align:top;padding-left:6pt;border:none;mso-border-alt:none;">'
         f'{"".join(right_ftr_parts)}</td>'
-        "</tr></table>"
+        '</tr></table>'
     )
 
     fns = norm_doc.get("footnotes") or []

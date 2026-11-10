@@ -158,7 +158,7 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         is_b = (idx == len(org_lines) - 1) or len(org_lines) == 1
         _add_runs_with_placeholder_highlight(p, org, nums["ORGAN_SIZE"], bold=is_b)
 
-    if is_dang:
+    if hdr_data.get("has_star"):
         p_star = c_left.add_paragraph()
         p_star.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_star.paragraph_format.space_before = Pt(0)

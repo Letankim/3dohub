@@ -148,7 +148,7 @@ def _header_blocks(b: _Builder, norm: dict[str, Any]) -> list[dict[str, Any]]:
     for i, org in enumerate(orgs):
         bold = i == len(orgs) - 1 or len(orgs) == 1
         left.append(b.p(org, org_size, "Center", bold=bold, line=1.0))
-    if is_dang:
+    if hdr.get("has_star"):
         left.append(b.p("*", org_size, "Center", bold=True, line=1.0))
     elif orgs and bools["ORGAN_UNDERLINE"]:
         left.append(b.p("-----", 10, "Center", bold=True, line=1.0))

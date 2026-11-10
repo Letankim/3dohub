@@ -8,7 +8,7 @@ import copy
 from typing import Any
 
 _PT_PER_MM = 72.0 / 25.4
-_CELL_PAD_MM = 4.2  # left+right cell padding + safety margin
+_CELL_PAD_MM = 6.0  # left+right cell padding + safety margin
 _MIN_SIZE = 11.5
 
 
