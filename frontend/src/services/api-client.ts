@@ -187,6 +187,11 @@ axiosClient.interceptors.response.use(
   }
 );
 
+// In-flight request deduplication & short-term anti-burst cache
+let inFlightListShortLinksPromise: Promise<ApiResponse<ShortLinkItem[]>> | null = null;
+let lastListShortLinksTime = 0;
+let lastListShortLinksResult: ApiResponse<ShortLinkItem[]> | null = null;
+
 export const hubApi = {
   async getModules(): Promise<ApiResponse<HubModuleItem[]>> {
     const res = await axiosClient.get<ApiResponse<HubModuleItem[]>>('/hub/modules');
@@ -380,6 +385,8 @@ export const hubApi = {
     if (res.data?.data?.code) {
       recordCreatedLinkCode(res.data.data.code);
     }
+    // Invalidate short-term cache on new link creation
+    lastListShortLinksResult = null;
     return res.data;
   },
 
@@ -389,18 +396,41 @@ export const hubApi = {
     limit?: number;
     offset?: number;
     codes?: string;
+    forceRefresh?: boolean;
   }): Promise<ApiResponse<ShortLinkItem[]>> {
+    const now = Date.now();
+    // 1. If an identical list request is currently in-flight, reuse it (prevents duplicate calls on mount)
+    if (inFlightListShortLinksPromise) {
+      return inFlightListShortLinksPromise;
+    }
+    // 2. Debounce burst requests within 1.5 seconds unless explicitly forced
+    if (!params?.forceRefresh && lastListShortLinksResult && now - lastListShortLinksTime < 1500) {
+      return lastListShortLinksResult;
+    }
+
     const clientCodes = getDeviceCreatedLinkCodes();
     const sessionId = getClientSessionId();
+    const { forceRefresh, ...queryParamProps } = params || {};
     const mergedParams: Record<string, string | number | undefined> = {
-      ...params,
+      ...queryParamProps,
       session_id: sessionId,
-      codes: params?.codes || (clientCodes.length > 0 ? clientCodes.join(',') : undefined),
+      codes: queryParamProps?.codes || (clientCodes.length > 0 ? clientCodes.join(',') : undefined),
     };
-    const res = await axiosClient.get<ApiResponse<ShortLinkItem[]>>('/links', {
-      params: mergedParams,
-    });
-    return res.data;
+
+    inFlightListShortLinksPromise = (async () => {
+      try {
+        const res = await axiosClient.get<ApiResponse<ShortLinkItem[]>>('/links', {
+          params: mergedParams,
+        });
+        lastListShortLinksResult = res.data;
+        lastListShortLinksTime = Date.now();
+        return res.data;
+      } finally {
+        inFlightListShortLinksPromise = null;
+      }
+    })();
+
+    return inFlightListShortLinksPromise;
   },
 
   async getShortLinkDetails(code: string): Promise<ApiResponse<ShortLinkItem>> {
@@ -418,12 +448,14 @@ export const hubApi = {
     payload: UpdateShortLinkPayload
   ): Promise<ApiResponse<ShortLinkItem>> {
     const res = await axiosClient.put<ApiResponse<ShortLinkItem>>(`/links/${code}`, payload);
+    lastListShortLinksResult = null;
     return res.data;
   },
 
   async deleteShortLink(code: string): Promise<ApiResponse<{ deleted_code: string }>> {
     const res = await axiosClient.delete<ApiResponse<{ deleted_code: string }>>(`/links/${code}`);
     removeDeviceCreatedLinkCode(code);
+    lastListShortLinksResult = null;
     return res.data;
   },
 };

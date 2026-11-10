@@ -88,7 +88,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 return err_resp
 
             # 3. Verify Cryptographic Checksum (SHA-256) & Canonical Signature (HMAC-SHA256)
-            if settings.ENFORCE_REQUEST_SIGNATURE:
+            # Public Health Check endpoints are exempted so uptime monitors, keep-alive pings & load balancers connect directly
+            is_health_endpoint = path.rstrip("/").endswith("/health") or path == "/health"
+            if settings.ENFORCE_REQUEST_SIGNATURE and not is_health_endpoint:
                 content_type = request.headers.get("content-type") or ""
                 is_multipart = "multipart/form-data" in content_type.lower()
                 raw_body = b"" if is_multipart else await request.body()

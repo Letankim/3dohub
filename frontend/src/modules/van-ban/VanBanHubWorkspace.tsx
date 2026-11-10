@@ -260,7 +260,19 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   // Initial metadata & initial sample normalization
   useEffect(() => {
     const initData = async () => {
-      // If on standalone tools (QR Code, Short Link, Excel) or Home page, do not fetch doc profiles/templates upfront
+      // If on standalone tools (QR Code, Short Link, Excel), do not fetch doc profiles/templates
+      const isStandaloneTool =
+        initialMode === 'SHORT_LINK_WORKSPACE' ||
+        initialMode === 'QR_CODE_WORKSPACE' ||
+        initialMode === 'EXCEL_WORKSPACE' ||
+        pathname?.startsWith('/tien-ich/rut-gon-link') ||
+        pathname?.startsWith('/tien-ich/tao-ma-qr') ||
+        pathname?.startsWith('/tien-ich/chuan-hoa-excel');
+
+      if (isStandaloneTool) {
+        return;
+      }
+
       const isDocWorkspace =
         pathname?.startsWith('/tien-ich/chuan-hoa-van-ban') ||
         pathname === '/tien-ich' ||

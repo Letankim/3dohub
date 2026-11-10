@@ -1,7 +1,7 @@
 """Database Engine and Session Configuration for 3DoHub (PostgreSQL via SQLAlchemy)."""
 
-from typing import Generator
-from sqlalchemy import create_engine
+from typing import Any, Generator
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.core.config import settings
 
@@ -37,3 +37,13 @@ def init_db() -> None:
     # Ensure all models are imported so Base.metadata contains the tables
     import app.modules.short_link.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+
+
+def ping_database() -> dict[str, Any]:
+    """Execute a live lightweight ping query ('SELECT 1') to prevent database sleeping / cold starts."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "CONNECTED", "alive": True}
+    except Exception as e:
+        return {"status": "DISCONNECTED", "alive": False, "error": str(e)}

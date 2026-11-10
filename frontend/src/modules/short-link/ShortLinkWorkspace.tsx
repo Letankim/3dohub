@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Row, Col, Card, Typography, Space, message } from 'antd';
 import {
   LinkOutlined,
@@ -23,10 +23,15 @@ export const ShortLinkWorkspace: React.FC = () => {
   const [selectedStatsCode, setSelectedStatsCode] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState<boolean>(false);
 
-  const fetchLinks = useCallback(async () => {
+  const hasMountedRef = useRef<boolean>(false);
+  const isFetchingRef = useRef<boolean>(false);
+
+  const fetchLinks = useCallback(async (force = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setLoading(true);
     try {
-      const res = await apiClient.listShortLinks({ limit: 100 });
+      const res = await apiClient.listShortLinks({ limit: 100, forceRefresh: force });
       if (res.data) {
         setLinks(res.data);
       }
@@ -34,10 +39,13 @@ export const ShortLinkWorkspace: React.FC = () => {
       message.error('Không thể tải danh sách liên kết rút gọn.');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
+    if (hasMountedRef.current) return;
+    hasMountedRef.current = true;
     fetchLinks();
   }, [fetchLinks]);
 
@@ -153,7 +161,7 @@ export const ShortLinkWorkspace: React.FC = () => {
           items={links}
           loading={loading}
           total={totalLinks}
-          onRefresh={fetchLinks}
+          onRefresh={() => fetchLinks(true)}
           onSelectStats={(code) => setSelectedStatsCode(code)}
           onOpenCreate={() => setCreateModalOpen(true)}
         />
@@ -163,7 +171,7 @@ export const ShortLinkWorkspace: React.FC = () => {
       <CreateShortLinkModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        onCreated={() => fetchLinks()}
+        onCreated={() => fetchLinks(true)}
       />
 
       {/* Stats Modal */}

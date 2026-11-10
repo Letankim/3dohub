@@ -65,6 +65,13 @@ def create_app() -> FastAPI:
     async def public_short_redirect(code: str, request: Request, db: Session = Depends(get_db)):
         return await redirect_short_link(code=code, request=request, db=db)
 
+    # Public Root & API Health Checks (Exempted from checksum/signature, pings database)
+    @app.get("/health", tags=["Health"])
+    @app.get(f"{settings.API_PREFIX}/health", tags=["Health"])
+    async def global_health_check(request: Request):
+        from app.modules.hub.router import health_check
+        return await health_check(request=request)
+
     return app
 
 
