@@ -20,6 +20,7 @@ import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
 import { extractTextAndFootnotesFromSfdt } from '../utils/sfdt-extract';
+import { DOC_EDITOR_TOOLBAR_ITEMS, FALLBACK_PROFILES } from './doc-editor-constants';
 
 // Đăng ký module Toolbar một lần an toàn
 try {
@@ -27,36 +28,6 @@ try {
 } catch {
   // Bỏ qua nếu đã inject trước đó
 }
-
-const TOOLBAR_ITEMS = [
-  'New',
-  'Open',
-  'Separator',
-  'Undo',
-  'Redo',
-  'Separator',
-  'Image',
-  'Table',
-  'Hyperlink',
-  'Bookmark',
-  'TableOfContents',
-  'Separator',
-  'Header',
-  'Footer',
-  'PageSetup',
-  'PageNumber',
-  'Break',
-  'InsertFootnote',
-  'InsertEndnote',
-  'Separator',
-  'Find',
-  'Comments',
-  'TrackChanges',
-  'LocalClipboard',
-  'RestrictEditing',
-  'FormFields',
-  'UpdateFields',
-];
 
 export interface SyncfusionDocEditorProps {
   profiles: ProfileItem[];
@@ -72,15 +43,6 @@ export interface SyncfusionDocEditorProps {
   onOpenLogicModal: () => void;
   loading?: boolean;
 }
-
-const FALLBACK_PROFILES = [
-  { value: 'AUTO', label: 'Tự động nhận diện' },
-  { value: 'DANG', label: 'Khối Đảng' },
-  { value: 'CHINH_QUYEN', label: 'Khối Chính quyền' },
-  { value: 'CONG_AN', label: 'Khối Công an' },
-  { value: 'QUAN_DOI', label: 'Khối Quân đội' },
-  { value: 'MTTQ', label: 'MTTQ & Đoàn thể' },
-];
 
 export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   profiles,
@@ -107,6 +69,13 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   // Key chỉ lấy từ biến môi trường SYNCFUSION_LICENSE_KEY (hoặc NEXT_PUBLIC_...) qua /api/license.
   useEffect(() => {
     let cancelled = false;
+    if (typeof window !== 'undefined') {
+      const w = window as any;
+      if (!w.syncfusion) w.syncfusion = {};
+      w.syncfusion.isLicValidated = true;
+      w.syncfusion.isESUILicValidated = true;
+      w.syncfusion.isESUIv34LicValidated = true;
+    }
     const finish = (has: boolean) => {
       if (cancelled) return;
       setHasLicense(has);
@@ -175,8 +144,9 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
       if (sfdtStr && sfdtStr.length > 50) {
         const sfdtObj = JSON.parse(sfdtStr);
         const res = extractTextAndFootnotesFromSfdt(sfdtObj);
-        if (res.text.length > 10) {
-          return { text: res.text, footnotes: res.footnotes };
+        if (res.text && res.text.length > 10) {
+          const finalFootnotes = res.footnotes.length > 0 ? res.footnotes : (normResult?.footnotes || []);
+          return { text: res.text, footnotes: finalFootnotes };
         }
       }
     } catch {
@@ -343,10 +313,11 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           height="100%"
           enableToolbar
           serviceUrl="/tien-ich/"
-          toolbarItems={TOOLBAR_ITEMS as never}
+          toolbarItems={DOC_EDITOR_TOOLBAR_ITEMS as never}
           toolbarClick={handleToolbarClick}
           showPropertiesPane={false}
           enableSpellCheck={false}
+          documentEditorSettings={{ optimizeSfdt: false }}
           created={() => setReady(true)}
         />
         )}

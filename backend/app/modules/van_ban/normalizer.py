@@ -183,8 +183,20 @@ def normalize_document_lines(
         "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5",
         "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁰": "0",
     }
-    footnotes: list[dict[str, str]] = list(existing_footnotes or [])
+    footnotes: list[dict[str, str]] = [
+        {
+            "n": str(f.get("n")),
+            "text": re.sub(
+                r"^(\d+|[¹²³⁴⁵⁶⁷⁸⁹])[\.\:\s\t]+",
+                "",
+                str(f.get("text", "")).replace("\x02", "").strip(),
+            ),
+        }
+        for f in (existing_footnotes or [])
+        if f.get("n") and f.get("text")
+    ]
     existing_nums = {str(f.get("n")) for f in footnotes}
+    existing_texts = {f.get("text", "").strip() for f in footnotes if f.get("text")}
     kept: list[str] = []
 
     for c_line in cleaned:
@@ -197,18 +209,26 @@ def normalize_document_lines(
         if m_fn:
             raw_n = m_fn.group(1)
             n_str = "".join(_SUPERSCRIPTS.get(c, c) for c in raw_n)
-            fn_text = m_fn.group(2).strip()
+            fn_text = m_fn.group(2).replace("\x02", "").strip()
+            fn_text = re.sub(r"^(\d+|[¹²³⁴⁵⁶⁷⁸⁹])[\.\:\s\t]+", "", fn_text).strip()
             if n_str not in existing_nums:
                 footnotes.append({"n": n_str, "text": fn_text})
                 existing_nums.add(n_str)
-        else:
-            if any(c in s for c in _SUPERSCRIPTS):
-                s = re.sub(
-                    r"([¹²³⁴⁵⁶⁷⁸⁹]+)",
-                    lambda m: "[^" + "".join(_SUPERSCRIPTS.get(c, c) for c in m.group(1)) + "]",
-                    s,
-                )
-            kept.append(s)
+                if fn_text:
+                    existing_texts.add(fn_text)
+            continue
+
+        # Nếu dòng trùng với nội dung của footnote đã biết -> không giữ làm đoạn văn thân bài
+        if existing_texts and any(s == t or (len(t) > 15 and s.endswith(t)) for t in existing_texts):
+            continue
+
+        if any(c in s for c in _SUPERSCRIPTS):
+            s = re.sub(
+                r"([¹²³⁴⁵⁶⁷⁸⁹]+)",
+                lambda m: "[^" + "".join(_SUPERSCRIPTS.get(c, c) for c in m.group(1)) + "]",
+                s,
+            )
+        kept.append(s)
     cleaned = kept
 
     res_info = resolve_profile(cleaned, force_profile)

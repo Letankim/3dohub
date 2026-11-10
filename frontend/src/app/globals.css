@@ -28,3 +28,11 @@ code {
   padding: 1px 5px;
   border-radius: 3px;
 }
+
+/* Ẩn hoàn toàn thông báo bản quyền Syncfusion trên giao diện người dùng */
+.sf-license-validation-banner,
+.e-license-warning,
+div[class*="sf-license"] {
+  display: none !important;
+}
+

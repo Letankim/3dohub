@@ -66,12 +66,16 @@ class _Builder:
                 continue
             m = re.fullmatch(r"\[\^(\d+)\]", part)
             if m and m.group(1) in self.fn:
+                fn_txt = self.fn[m.group(1)]
                 out.append({
                     "footnoteType": "Footnote",
                     "characterFormat": _cf(size, sup=True),
                     "blocks": [_para(
-                        [{"text": self.fn[m.group(1)], "characterFormat": _cf(10)}],
-                        size=10, line=1.0,
+                        [
+                            {"text": "\u0002", "characterFormat": _cf(10, sup=True)},
+                            {"text": f" {fn_txt}", "characterFormat": _cf(10)},
+                        ],
+                        size=10, line=1.0, after=2,
                     )],
                 })
                 continue
@@ -264,10 +268,21 @@ def build_sfdt(norm_doc: dict[str, Any]) -> dict[str, Any]:
                 "topMargin": M_TOP, "bottomMargin": M_BOTTOM,
                 "headerDistance": 28.35, "footerDistance": 28.35,
                 "differentFirstPage": True, "differentOddAndEvenPages": False,
+                "footNoteNumberFormat": "Arabic",
+                "restartIndexForFootnotes": "DoNotRestart",
+                "initialFootNoteNumber": 1,
             },
         }],
         "characterFormat": _cf(13),
         "paragraphFormat": {"afterSpacing": 0, "lineSpacing": 1.0, "lineSpacingType": "Multiple"},
+        "footnotes": {
+            "separator": [
+                _para([{"text": "\u0003", "characterFormat": {"fontColor": "#00000000"}}], size=10, line=1.0)
+            ],
+            "continuationSeparator": [
+                _para([{"text": "\u0004", "characterFormat": {"fontColor": "#00000000"}}], size=10, line=1.0)
+            ],
+        },
         "background": {"color": "#FFFFFFFF"},
         "styles": [],
     }

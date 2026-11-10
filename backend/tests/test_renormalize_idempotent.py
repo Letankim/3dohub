@@ -39,7 +39,11 @@ def extract_like_frontend(sfdt: dict) -> tuple[list[str], list[dict]]:
         for inl in inlines:
             if inl.get("footnoteType"):
                 body = " ".join(
-                    "".join(i.get("text", "") for i in b.get("inlines", []) if not i.get("footnoteType")).strip()
+                    "".join(
+                        i.get("text", "")
+                        for i in b.get("inlines", [])
+                        if not i.get("footnoteType") and i.get("text") != "\u0002"
+                    ).strip()
                     for b in inl.get("blocks", [])
                 ).strip()
                 n = str(len(fns) + 1)
