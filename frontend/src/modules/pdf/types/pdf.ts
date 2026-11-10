@@ -10,9 +10,9 @@ export interface CompressPreset {
   key: CompressLevel;
   label: string;
   desc: string;
-  badge: string;
-  expectedReduction: string;
 }
+
+export type CompressMethod = 'RASTER' | 'LOSSLESS' | 'ORIGINAL';
 
 export type SplitMode = 'CUSTOM_RANGE' | 'SPLIT_EACH' | 'FIXED_STEP';
 
@@ -39,6 +39,7 @@ export interface CompressResult {
   compressedSizeBytes: number;
   savedBytes: number;
   ratioPercent: number;
+  method: CompressMethod;
   pdfBlob: Blob;
   downloadFilename: string;
 }
@@ -57,3 +58,4 @@ export interface MergeResult {
   sizeBytes: number;
   downloadFilename: string;
 }
+

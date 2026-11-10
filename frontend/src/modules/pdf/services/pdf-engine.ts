@@ -4,7 +4,7 @@
 
 import { PDFDocument, degrees } from 'pdf-lib';
 import JSZip from 'jszip';
-import { CompressLevel, PdfLoadedFile, PdfPageItem } from '../types/pdf';
+import { PdfLoadedFile, PdfPageItem } from '../types/pdf';
 
 export async function readPdfFile(file: File): Promise<PdfLoadedFile> {
   const arrayBuffer = await file.arrayBuffer();
@@ -111,30 +111,42 @@ export async function organizePdfPages(
 }
 
 /**
- * Compress PDF document: cleans metadata, flattens unused objects, and compresses streams
+ * Tải một Blob về máy
  */
-export async function compressPdfDocument(
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Tạo danh sách trang ban đầu */
+export function buildPageItems(count: number, selectFirst = false): PdfPageItem[] {
+  return Array.from({ length: count }, (_, i) => ({
+    pageIndex: i,
+    pageNumber: i + 1,
+    rotation: 0,
+    selected: selectFirst && i === 0,
+    isDeleted: false,
+  }));
+}
+
+/** Dựng hình thu nhỏ lần lượt; dừng nếu `signal.cancelled` */
+export async function loadThumbnails(
   buffer: ArrayBuffer,
-  level: CompressLevel
-): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-
-  // Clean unnecessary metadata
-  pdfDoc.setTitle('');
-  pdfDoc.setAuthor('');
-  pdfDoc.setSubject('');
-  pdfDoc.setKeywords([]);
-  pdfDoc.setProducer('3DoHub PDF Utility');
-  pdfDoc.setCreator('3DoHub Platform');
-
-  // Fast & efficient object streams compression
-  const bytes = await pdfDoc.save({
-    useObjectStreams: true,
-    addDefaultPage: false,
-    objectsPerTick: level === 'HIGH' ? 50 : 20,
-  });
-
-  return bytes;
+  count: number,
+  onThumb: (pageIndex: number, url: string) => void,
+  signal: { cancelled: boolean }
+): Promise<void> {
+  const { renderPageThumbnail } = await import('./pdf-thumbnail');
+  for (let i = 0; i < count; i++) {
+    if (signal.cancelled) return;
+    onThumb(i, await renderPageThumbnail(buffer, i + 1));
+  }
 }
 
 /**
@@ -178,3 +190,4 @@ export function parsePageRangeString(rangeStr: string, totalPages: number): numb
 
   return Array.from(indices).sort((a, b) => a - b);
 }
+

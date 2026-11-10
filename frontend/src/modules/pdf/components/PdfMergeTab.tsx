@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Button, Space, Typography, List, message } from 'antd';
+import { Card, Button, Typography, message } from 'antd';
 import {
   MergeCellsOutlined,
   DownloadOutlined,
@@ -9,289 +9,129 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   DeleteOutlined,
-  PlusOutlined,
-  CheckCircleOutlined,
-  RedoOutlined,
 } from '@ant-design/icons';
 import { PdfDropzone } from './PdfDropzone';
+import { PdfResultBanner } from './PdfCommon';
 import { MergeResult, PdfLoadedFile } from '../types/pdf';
-import { formatBytes, mergePdfBuffers, readPdfFile } from '../services/pdf-engine';
+import { downloadBlob, formatBytes, mergePdfBuffers, readPdfFile } from '../services/pdf-engine';
+import { useIsMobile } from '../hooks/useIsMobile';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export const PdfMergeTab: React.FC = () => {
+  const isMobile = useIsMobile();
   const [files, setFiles] = useState<PdfLoadedFile[]>([]);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<MergeResult | null>(null);
 
   const handleFilesSelected = async (selected: File[]) => {
     try {
-      const readPromises = selected.map((f) => readPdfFile(f));
-      const newItems = await Promise.all(readPromises);
-      setFiles((prev) => [...prev, ...newItems]);
+      const items = await Promise.all(selected.map((f) => readPdfFile(f)));
+      setFiles((prev) => [...prev, ...items]);
       setResult(null);
     } catch {
-      message.error('Không thể đọc một số file PDF. Vui lòng kiểm tra lại.');
+      message.error('Không đọc được một số file PDF.');
     }
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index <= 0) return;
+  const move = (index: number, delta: number) =>
     setFiles((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
       const copy = [...prev];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
+      [copy[index], copy[target]] = [copy[target], copy[index]];
       return copy;
     });
-  };
-
-  const handleMoveDown = (index: number) => {
-    setFiles((prev) => {
-      if (index >= prev.length - 1) return prev;
-      const copy = [...prev];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  };
-
-  const handleRemoveFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
 
   const handleMerge = async () => {
     if (files.length < 2) {
-      message.warning('Vui lòng chọn từ 2 file PDF trở lên để thực hiện ghép nối.');
+      message.warning('Cần ít nhất 2 file để gộp.');
       return;
     }
-
     setProcessing(true);
     try {
-      const buffers = files.map((f) => f.arrayBuffer);
-      const mergedBytes = await mergePdfBuffers(buffers);
-      const totalPages = files.reduce((sum, f) => sum + f.pageCount, 0);
-      const blob = new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-
+      const bytes = await mergePdfBuffers(files.map((f) => f.arrayBuffer));
       setResult({
-        pdfBlob: blob,
-        totalPageCount: totalPages,
-        sizeBytes: mergedBytes.byteLength,
+        pdfBlob: new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }),
+        totalPageCount: files.reduce((s, f) => s + f.pageCount, 0),
+        sizeBytes: bytes.byteLength,
         downloadFilename: `TaiLieu_Gop_${Date.now()}.pdf`,
       });
-      message.success(`Đã gộp thành công ${files.length} file PDF!`);
     } catch {
-      message.error('Đã xảy ra lỗi trong quá trình gộp các file PDF.');
+      message.error('Không gộp được các file này.');
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-    const url = URL.createObjectURL(result.pdfBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = result.downloadFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  if (files.length === 0) return <PdfDropzone multiple onFilesSelected={handleFilesSelected} />;
 
-  const totalPagesCount = files.reduce((sum, f) => sum + f.pageCount, 0);
-  const totalSizeBytes = files.reduce((sum, f) => sum + f.sizeBytes, 0);
+  const totalPages = files.reduce((s, f) => s + f.pageCount, 0);
+  const totalSize = files.reduce((s, f) => s + f.sizeBytes, 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {files.length === 0 ? (
-        <PdfDropzone
-          onFilesSelected={handleFilesSelected}
-          multiple
-          title="Kéo thả các file PDF cần gộp vào đây"
-          subtitle="Ghép nối nhiều file PDF riêng lẻ thành một tài liệu duy nhất theo thứ tự mong muốn"
-        />
-      ) : (
-        <Card
-          style={{
-            borderRadius: 6,
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
-          }}
-          styles={{ body: { padding: 24 } }}
-        >
-          {/* Header Summary & Add More */}
+    <Card style={{ borderRadius: 6, border: '1px solid #E2E8F0' }} styles={{ body: { padding: isMobile ? 12 : 20 } }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div>
+          <Text strong style={{ color: '#0F172A', display: 'block' }}>Danh sách file ({files.length})</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{totalPages} trang • {formatBytes(totalSize)}</Text>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <PdfDropzone multiple variant="inline" label="Thêm file" onFilesSelected={handleFilesSelected} />
+          <Button danger icon={<DeleteOutlined />} onClick={() => { setFiles([]); setResult(null); }} style={{ borderRadius: 4 }}>
+            Xóa hết
+          </Button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {files.map((item, index) => (
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 16,
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
+            key={item.id}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: 6, background: '#fff' }}
           >
-            <div>
-              <Title level={5} style={{ margin: '0 0 4px 0', color: '#0F172A' }}>
-                Danh sách file chuẩn bị ghép ({files.length} file)
-              </Title>
-              <Text type="secondary" style={{ fontSize: 13 }}>
-                Tổng số trang: <b>{totalPagesCount} trang</b> • Tổng dung lượng: {formatBytes(totalSizeBytes)}
-              </Text>
+            <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontWeight: 700, fontSize: 12, padding: '0 7px', borderRadius: 4, border: '1px solid #BFDBFE', flexShrink: 0 }}>
+              {index + 1}
+            </span>
+            <FilePdfOutlined style={{ fontSize: 20, color: '#DC2626', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text strong ellipsis style={{ display: 'block', fontSize: 13 }}>{item.name}</Text>
+              <Text type="secondary" style={{ fontSize: 11.5 }}>{item.pageCount} trang • {formatBytes(item.sizeBytes)}</Text>
             </div>
-
-            <Space size={8}>
-              <div style={{ display: 'inline-block' }}>
-                <PdfDropzone
-                  onFilesSelected={handleFilesSelected}
-                  multiple
-                  title="Thêm file"
-                  subtitle=""
-                />
-              </div>
-
-              <Button danger icon={<DeleteOutlined />} onClick={() => setFiles([])} style={{ borderRadius: 4 }}>
-                Xóa tất cả
-              </Button>
-            </Space>
-          </div>
-
-          {/* List of files with up/down controls */}
-          <div style={{ marginBottom: 24 }}>
-            <List
-              dataSource={files}
-              bordered
-              style={{ borderRadius: 6, background: '#FFFFFF' }}
-              renderItem={(item, index) => (
-                <List.Item
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                  }}
-                >
-                  <Space size={12} style={{ flex: 1, minWidth: 0 }}>
-                    <span
-                      style={{
-                        background: '#EFF6FF',
-                        color: '#1D4ED8',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        border: '1px solid #BFDBFE',
-                      }}
-                    >
-                      #{index + 1}
-                    </span>
-                    <FilePdfOutlined style={{ fontSize: 22, color: '#DC2626' }} />
-                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                      <Text strong style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>
-                        {item.name}
-                      </Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {item.pageCount} trang • {formatBytes(item.sizeBytes)}
-                      </Text>
-                    </div>
-                  </Space>
-
-                  <Space size={6}>
-                    <Button
-                      size="small"
-                      icon={<ArrowUpOutlined />}
-                      disabled={index === 0}
-                      onClick={() => handleMoveUp(index)}
-                      title="Di chuyển lên trên"
-                    />
-                    <Button
-                      size="small"
-                      icon={<ArrowDownOutlined />}
-                      disabled={index === files.length - 1}
-                      onClick={() => handleMoveDown(index)}
-                      title="Di chuyển xuống dưới"
-                    />
-                    <Button
-                      size="small"
-                      danger
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveFile(item.id)}
-                      title="Xóa file này"
-                    />
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </div>
-
-          {/* Action / Result */}
-          {!result ? (
-            <Button
-              type="primary"
-              size="large"
-              icon={<MergeCellsOutlined />}
-              loading={processing}
-              disabled={files.length < 2}
-              onClick={handleMerge}
-              style={{
-                borderRadius: 4,
-                background: '#1D4ED8',
-                fontWeight: 600,
-                height: 42,
-              }}
-            >
-              Ghép nối {files.length} file PDF thành 1 tài liệu
-            </Button>
-          ) : (
-            <div
-              style={{
-                background: '#F0FDF4',
-                border: '1px solid #86EFAC',
-                borderRadius: 6,
-                padding: '20px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <CheckCircleOutlined style={{ color: '#16A34A', fontSize: 22 }} />
-                <Title level={5} style={{ margin: 0, color: '#15803D' }}>
-                  Ghép nối tài liệu thành công!
-                </Title>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 13, color: '#334155' }}>
-                  Tài liệu hoàn chỉnh gồm <b>{result.totalPageCount} trang</b> • Dung lượng:{' '}
-                  <b>{formatBytes(result.sizeBytes)}</b>
-                </Text>
-              </div>
-
-              <Space size={12}>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  style={{
-                    background: '#16A34A',
-                    borderColor: '#16A34A',
-                    borderRadius: 4,
-                    fontWeight: 600,
-                  }}
-                >
-                  Tải file PDF đã gộp về máy
-                </Button>
-
-                <Button icon={<RedoOutlined />} onClick={() => setResult(null)} style={{ borderRadius: 4 }}>
-                  Gộp danh sách khác
-                </Button>
-              </Space>
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              <Button size="small" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => move(index, -1)} />
+              <Button size="small" icon={<ArrowDownOutlined />} disabled={index === files.length - 1} onClick={() => move(index, 1)} />
+              <Button size="small" danger type="text" icon={<DeleteOutlined />} onClick={() => setFiles((p) => p.filter((f) => f.id !== item.id))} />
             </div>
-          )}
-        </Card>
+          </div>
+        ))}
+      </div>
+
+      {!result ? (
+        <Button
+          type="primary"
+          size="large"
+          block={isMobile}
+          icon={<MergeCellsOutlined />}
+          loading={processing}
+          disabled={files.length < 2}
+          onClick={handleMerge}
+          style={{ borderRadius: 4, background: '#1D4ED8', fontWeight: 600 }}
+        >
+          Gộp {files.length} file
+        </Button>
+      ) : (
+        <PdfResultBanner
+          title="Đã gộp xong"
+          downloadLabel="Tải file"
+          downloadIcon={<DownloadOutlined />}
+          onDownload={() => downloadBlob(result.pdfBlob, result.downloadFilename)}
+          againLabel="Gộp lại"
+          onAgain={() => setResult(null)}
+        >
+          <Text style={{ fontSize: 13 }}>{result.totalPageCount} trang • {formatBytes(result.sizeBytes)}</Text>
+        </PdfResultBanner>
       )}
-    </div>
+    </Card>
   );
 };

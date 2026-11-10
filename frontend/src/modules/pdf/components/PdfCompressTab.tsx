@@ -1,296 +1,148 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Button, Radio, Space, Typography, Progress, message } from 'antd';
-import {
-  CompressOutlined,
-  DownloadOutlined,
-  FilePdfOutlined,
-  RedoOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
+import { Card, Button, Radio, Typography, Progress, Alert, message } from 'antd';
+import { CompressOutlined, DownloadOutlined } from '@ant-design/icons';
 import { PdfDropzone } from './PdfDropzone';
+import { PdfFileSummary, PdfResultBanner } from './PdfCommon';
 import { CompressLevel, CompressPreset, CompressResult, PdfLoadedFile } from '../types/pdf';
-import { compressPdfDocument, formatBytes, readPdfFile } from '../services/pdf-engine';
+import { downloadBlob, formatBytes, readPdfFile } from '../services/pdf-engine';
+import { compressPdfDocument } from '../services/pdf-compress';
+import { useIsMobile } from '../hooks/useIsMobile';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
-const COMPRESS_PRESETS: CompressPreset[] = [
-  {
-    key: 'LOW',
-    label: 'Nén nhẹ (Chất lượng cao)',
-    desc: 'Giữ nguyên độ sắc nét cao nhất của văn bản và hình ảnh, dọn dẹp cấu trúc file.',
-    badge: 'Chất lượng cao',
-    expectedReduction: 'Tiết kiệm ~20% - 30%',
-  },
-  {
-    key: 'MEDIUM',
-    label: 'Nén chuẩn (Khuyên dùng)',
-    desc: 'Cân bằng hoàn hảo giữa kích thước nhỏ và độ rõ nét, rất thích hợp gửi Email, Zalo.',
-    badge: 'Khuyên dùng',
-    expectedReduction: 'Tiết kiệm ~40% - 60%',
-  },
-  {
-    key: 'HIGH',
-    label: 'Nén tối đa',
-    desc: 'Giảm tối đa kích thước để đáp ứng hạn mức nộp hồ sơ, cổng dịch vụ công.',
-    badge: 'Dung lượng nhỏ nhất',
-    expectedReduction: 'Tiết kiệm ~60% - 80%',
-  },
+const PRESETS: CompressPreset[] = [
+  { key: 'LOW', label: 'Nhẹ', desc: 'Giữ nét cao, giảm ít' },
+  { key: 'MEDIUM', label: 'Vừa', desc: 'Cân bằng, nên dùng' },
+  { key: 'HIGH', label: 'Mạnh', desc: 'Nhỏ nhất, ảnh mờ hơn' },
 ];
 
 export const PdfCompressTab: React.FC = () => {
+  const isMobile = useIsMobile();
   const [loadedFile, setLoadedFile] = useState<PdfLoadedFile | null>(null);
   const [level, setLevel] = useState<CompressLevel>('MEDIUM');
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<CompressResult | null>(null);
 
   const handleFileSelected = async (files: File[]) => {
     if (!files[0]) return;
     try {
-      const info = await readPdfFile(files[0]);
-      setLoadedFile(info);
+      setLoadedFile(await readPdfFile(files[0]));
       setResult(null);
     } catch {
-      message.error('Không thể đọc file PDF này. Vui lòng thử file khác.');
+      message.error('Không đọc được file PDF này.');
     }
   };
 
   const handleCompress = async () => {
     if (!loadedFile) return;
     setProcessing(true);
+    setProgress(0);
     try {
-      const compressedBytes = await compressPdfDocument(loadedFile.arrayBuffer, level);
+      const { bytes, method } = await compressPdfDocument(loadedFile.arrayBuffer, level, setProgress);
       const originalSize = loadedFile.sizeBytes;
-      const compressedSize = compressedBytes.byteLength;
-      const saved = Math.max(0, originalSize - compressedSize);
-      const ratio = originalSize > 0 ? Math.round((saved / originalSize) * 100) : 0;
-
-      const blob = new Blob([compressedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const baseName = loadedFile.name.replace(/\.pdf$/i, '');
-      const downloadFilename = `${baseName}_DaNen.pdf`;
-
+      const saved = Math.max(0, originalSize - bytes.byteLength);
       setResult({
         originalSizeBytes: originalSize,
-        compressedSizeBytes: compressedSize,
+        compressedSizeBytes: method === 'ORIGINAL' ? originalSize : bytes.byteLength,
         savedBytes: saved,
-        ratioPercent: ratio,
-        pdfBlob: blob,
-        downloadFilename,
+        ratioPercent: originalSize > 0 ? Math.round((saved / originalSize) * 100) : 0,
+        method,
+        pdfBlob: new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }),
+        downloadFilename: `${loadedFile.name.replace(/\.pdf$/i, '')}_DaNen.pdf`,
       });
-      message.success('Đã nén file PDF thành công!');
     } catch {
-      message.error('Đã xảy ra sự cố khi nén file PDF.');
+      message.error('Không nén được file này.');
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-    const url = URL.createObjectURL(result.pdfBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = result.downloadFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleReset = () => {
-    setLoadedFile(null);
-    setResult(null);
-  };
+  if (!loadedFile) {
+    return <PdfDropzone onFilesSelected={handleFileSelected} />;
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {!loadedFile ? (
-        <PdfDropzone
-          onFilesSelected={handleFileSelected}
-          title="Kéo thả file PDF cần nén vào đây"
-          subtitle="Giảm dung lượng file PDF dễ dàng, thuận tiện chia sẻ và lưu trữ"
-        />
-      ) : (
-        <Card
-          style={{
-            borderRadius: 6,
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
-          }}
-          styles={{ body: { padding: 24 } }}
-        >
-          {/* File summary */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              background: '#F8FAFC',
-              borderRadius: 6,
-              border: '1px solid #E2E8F0',
-              marginBottom: 20,
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
+    <Card style={{ borderRadius: 6, border: '1px solid #E2E8F0' }} styles={{ body: { padding: isMobile ? 12 : 20 } }}>
+      <PdfFileSummary
+        name={loadedFile.name}
+        meta={`${formatBytes(loadedFile.sizeBytes)} • ${loadedFile.pageCount} trang`}
+        onChange={() => setLoadedFile(null)}
+      />
+
+      {!result ? (
+        <>
+          <Text strong style={{ display: 'block', marginBottom: 8, color: '#0F172A' }}>
+            Mức nén
+          </Text>
+          <Radio.Group
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            disabled={processing}
+            style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 16 }}
           >
-            <Space size={12}>
-              <FilePdfOutlined style={{ fontSize: 28, color: '#DC2626' }} />
-              <div>
-                <Text strong style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>
-                  {loadedFile.name}
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Dung lượng: {formatBytes(loadedFile.sizeBytes)} • {loadedFile.pageCount} trang
-                </Text>
-              </div>
-            </Space>
+            {PRESETS.map((p) => (
+              <Radio.Button
+                key={p.key}
+                value={p.key}
+                style={{ height: 'auto', padding: '8px 4px', textAlign: 'center', borderRadius: 4, lineHeight: 1.35, whiteSpace: 'normal' }}
+              >
+                <div style={{ fontWeight: 600 }}>{p.label}</div>
+                <div style={{ fontSize: 11, opacity: 0.75 }}>{p.desc}</div>
+              </Radio.Button>
+            ))}
+          </Radio.Group>
 
-            <Button icon={<RedoOutlined />} onClick={handleReset} style={{ borderRadius: 4 }}>
-              Chọn file khác
-            </Button>
-          </div>
+          {processing && <Progress percent={progress} size="small" style={{ marginBottom: 12 }} />}
 
-          {/* Compression Level Selector */}
-          <div style={{ marginBottom: 24 }}>
-            <Title level={5} style={{ margin: '0 0 12px 0', color: '#0F172A' }}>
-              Chọn mức độ nén
-            </Title>
-
-            <Radio.Group
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}
-            >
-              {COMPRESS_PRESETS.map((item) => (
-                <Radio
-                  key={item.key}
-                  value={item.key}
-                  style={{
-                    padding: '12px 16px',
-                    border: level === item.key ? '1px solid #1D4ED8' : '1px solid #E2E8F0',
-                    background: level === item.key ? '#EFF6FF' : '#FFFFFF',
-                    borderRadius: 6,
-                    width: '100%',
-                    margin: 0,
-                  }}
-                >
-                  <div style={{ display: 'inline-block', marginLeft: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Text strong style={{ color: '#0F172A', fontSize: 13.5 }}>
-                        {item.label}
-                      </Text>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          padding: '1px 6px',
-                          borderRadius: 3,
-                          background: level === item.key ? '#DBEAFE' : '#F1F5F9',
-                          color: level === item.key ? '#1D4ED8' : '#64748B',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {item.expectedReduction}
-                      </span>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 12.5, display: 'block', marginTop: 2 }}>
-                      {item.desc}
-                    </Text>
-                  </div>
-                </Radio>
-              ))}
-            </Radio.Group>
-          </div>
-
-          {/* Action / Result */}
-          {!result ? (
-            <Button
-              type="primary"
-              size="large"
-              icon={<CompressOutlined />}
-              loading={processing}
-              onClick={handleCompress}
-              style={{
-                borderRadius: 4,
-                background: '#1D4ED8',
-                fontWeight: 600,
-                height: 42,
-              }}
-            >
-              Tiến hành nén PDF
-            </Button>
-          ) : (
-            <div
-              style={{
-                background: '#F0FDF4',
-                border: '1px solid #86EFAC',
-                borderRadius: 6,
-                padding: '20px',
-                marginTop: 8,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <CheckCircleOutlined style={{ color: '#16A34A', fontSize: 22 }} />
-                <Title level={5} style={{ margin: 0, color: '#15803D' }}>
-                  Nén file thành công!
-                </Title>
-              </div>
-
-              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16 }}>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Dung lượng gốc:</Text>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>
-                    {formatBytes(result.originalSizeBytes)}
-                  </div>
-                </div>
-
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Sau khi nén:</Text>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#15803D' }}>
-                    {formatBytes(result.compressedSizeBytes)}
-                  </div>
-                </div>
-
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết kiệm được:</Text>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#1D4ED8' }}>
-                    {formatBytes(result.savedBytes)} ({result.ratioPercent}%)
-                  </div>
-                </div>
-              </div>
-
-              <Progress
-                percent={result.ratioPercent}
-                strokeColor="#16A34A"
-                format={(p) => `Giảm ${p}%`}
-                style={{ marginBottom: 16 }}
-              />
-
-              <Space size={12}>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  style={{
-                    background: '#16A34A',
-                    borderColor: '#16A34A',
-                    borderRadius: 4,
-                    fontWeight: 600,
-                  }}
-                >
-                  Tải file PDF đã nén
-                </Button>
-
-                <Button icon={<RedoOutlined />} onClick={handleReset} style={{ borderRadius: 4 }}>
-                  Nén file khác
-                </Button>
-              </Space>
+          <Button
+            type="primary"
+            size="large"
+            block={isMobile}
+            icon={<CompressOutlined />}
+            loading={processing}
+            onClick={handleCompress}
+            style={{ borderRadius: 4, background: '#1D4ED8', fontWeight: 600 }}
+          >
+            Nén file
+          </Button>
+        </>
+      ) : (
+        <PdfResultBanner
+          title={result.method === 'ORIGINAL' ? 'File đã tối ưu sẵn' : 'Đã nén xong'}
+          downloadLabel="Tải file"
+          downloadIcon={<DownloadOutlined />}
+          onDownload={() => downloadBlob(result.pdfBlob, result.downloadFilename)}
+          againLabel="Nén lại"
+          onAgain={() => setResult(null)}
+        >
+          <div style={{ display: 'flex', gap: isMobile ? 16 : 28, flexWrap: 'wrap', marginBottom: 8 }}>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Gốc</Text>
+              <div style={{ fontWeight: 600 }}>{formatBytes(result.originalSizeBytes)}</div>
             </div>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Sau nén</Text>
+              <div style={{ fontWeight: 700, color: '#15803D' }}>{formatBytes(result.compressedSizeBytes)}</div>
+            </div>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Giảm</Text>
+              <div style={{ fontWeight: 700, color: '#1D4ED8' }}>{result.ratioPercent}%</div>
+            </div>
+          </div>
+          <Progress percent={result.ratioPercent} strokeColor="#16A34A" showInfo={false} size="small" />
+          {result.method === 'ORIGINAL' && (
+            <Alert type="info" showIcon style={{ marginTop: 10 }} message="File này không thể nhỏ hơn nữa, giữ nguyên bản gốc." />
           )}
-        </Card>
+          {result.method === 'RASTER' && (
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              Trang được lưu dạng ảnh nên không chọn/sao chép được chữ.
+            </Text>
+          )}
+        </PdfResultBanner>
       )}
-    </div>
+    </Card>
   );
 };
