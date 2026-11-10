@@ -22,6 +22,7 @@ import { LogicReportModal } from './components/LogicReportModal';
 import { ExcelNormWorkspace } from '@/modules/excel-norm/ExcelNormWorkspace';
 import { ShortLinkWorkspace } from '@/modules/short-link/ShortLinkWorkspace';
 import { QrCodeWorkspace } from '@/modules/qr-code/QrCodeWorkspace';
+import { PdfHubWorkspace } from '@/modules/pdf/PdfHubWorkspace';
 import { HUB_MODULES_REGISTRY, HubNavModule } from '@/config/modules-registry';
 import { hubApi, HubApiException } from '@/services/api-client';
 import {
@@ -70,7 +71,8 @@ export interface VanBanHubWorkspaceProps {
     | 'EDITOR_WORKSPACE'
     | 'EXCEL_WORKSPACE'
     | 'SHORT_LINK_WORKSPACE'
-    | 'QR_CODE_WORKSPACE';
+    | 'QR_CODE_WORKSPACE'
+    | 'PDF_WORKSPACE';
 }
 
 export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
@@ -86,6 +88,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     | 'EXCEL_WORKSPACE'
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
+    | 'PDF_WORKSPACE'
   >(initialMode);
   const [activeNavKey, setActiveNavKey] = useState<string>(
     initialMode === 'HERO_HOME'
@@ -96,6 +99,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'short-link-module'
       : initialMode === 'QR_CODE_WORKSPACE'
       ? 'qr-code-module'
+      : initialMode === 'PDF_WORKSPACE'
+      ? 'pdf-module'
       : 'van-ban-module'
   );
   const [profiles, setProfiles] = useState<ProfileItem[]>([]);
@@ -129,6 +134,9 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     } else if (pathname?.startsWith('/tien-ich/tao-ma-qr')) {
       setWorkspaceTab('QR_CODE_WORKSPACE');
       setActiveNavKey('qr-code-module');
+    } else if (pathname?.startsWith('/tien-ich/xu-ly-pdf')) {
+      setWorkspaceTab('PDF_WORKSPACE');
+      setActiveNavKey('pdf-module');
     }
   }, [pathname]);
 
@@ -260,14 +268,16 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   // Initial metadata & initial sample normalization
   useEffect(() => {
     const initData = async () => {
-      // If on standalone tools (QR Code, Short Link, Excel), do not fetch doc profiles/templates
+      // If on standalone tools (QR Code, Short Link, Excel, PDF), do not fetch doc profiles/templates
       const isStandaloneTool =
         initialMode === 'SHORT_LINK_WORKSPACE' ||
         initialMode === 'QR_CODE_WORKSPACE' ||
         initialMode === 'EXCEL_WORKSPACE' ||
+        initialMode === 'PDF_WORKSPACE' ||
         pathname?.startsWith('/tien-ich/rut-gon-link') ||
         pathname?.startsWith('/tien-ich/tao-ma-qr') ||
-        pathname?.startsWith('/tien-ich/chuan-hoa-excel');
+        pathname?.startsWith('/tien-ich/chuan-hoa-excel') ||
+        pathname?.startsWith('/tien-ich/xu-ly-pdf');
 
       if (isStandaloneTool) {
         return;
@@ -370,6 +380,14 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     }
   };
 
+  const navigateToPdf = () => {
+    setWorkspaceTab('PDF_WORKSPACE');
+    setActiveNavKey('pdf-module');
+    if (pathname !== '/tien-ich/xu-ly-pdf') {
+      router.push('/tien-ich/xu-ly-pdf');
+    }
+  };
+
   const handleUploadDocx = async (file: File) => {
     setLoading(true);
     setApiError(null);
@@ -450,6 +468,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'Rút gọn link'
       : workspaceTab === 'QR_CODE_WORKSPACE'
       ? 'Tạo mã QR'
+      : workspaceTab === 'PDF_WORKSPACE'
+      ? 'Tiện ích PDF'
       : 'Chuẩn hóa văn bản';
 
   return (
@@ -480,6 +500,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
           onOpenExcelModule={navigateToExcel}
           onOpenShortLinkModule={navigateToShortLink}
           onOpenQrCodeModule={navigateToQrCode}
+          onOpenPdfModule={navigateToPdf}
         />
       ) : workspaceTab === 'EXCEL_WORKSPACE' ? (
         <ExcelNormWorkspace />
@@ -487,6 +508,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         <ShortLinkWorkspace />
       ) : workspaceTab === 'QR_CODE_WORKSPACE' ? (
         <QrCodeWorkspace />
+      ) : workspaceTab === 'PDF_WORKSPACE' ? (
+        <PdfHubWorkspace />
       ) : (
         <>
         <EditorErrorBoundary

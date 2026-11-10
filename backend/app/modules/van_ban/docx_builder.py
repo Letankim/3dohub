@@ -2,6 +2,7 @@
 
 import io
 import re
+import zipfile
 from typing import Any
 from docx import Document
 from docx.shared import Mm, Pt, Cm, RGBColor
@@ -84,16 +85,27 @@ def _add_runs_with_placeholder_highlight(
         if not part:
             continue
         is_fn = bool(re.fullmatch(r"\[\^\d+\]", part))
-        run = paragraph.add_run(part[2:-1] if is_fn else part)
+        if is_fn:
+            fn_id = part[2:-1]
+            fn_r = OxmlElement("w:r")
+            fn_rPr = OxmlElement("w:rPr")
+            fn_style = OxmlElement("w:rStyle")
+            fn_style.set(qn("w:val"), "FootnoteReference")
+            fn_rPr.append(fn_style)
+            fn_r.append(fn_rPr)
+            fn_ref = OxmlElement("w:footnoteReference")
+            fn_ref.set(qn("w:id"), fn_id)
+            fn_r.append(fn_ref)
+            paragraph._p.append(fn_r)
+            continue
+        run = paragraph.add_run(part)
         run.font.name = "Times New Roman"
         run.font.size = Pt(size_pt)
         run.bold = bold
         run.italic = italic
         run.underline = underline
         run.font.color.rgb = RGBColor(0, 0, 0)
-        if is_fn:
-            run.font.superscript = True
-        elif part.startswith("[") and part.endswith("]"):
+        if part.startswith("[") and part.endswith("]"):
             run.font.highlight_color = WD_COLOR_INDEX.YELLOW
 
 
@@ -404,26 +416,81 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
             p_nm, ftr["sign_name"], nums["SIGN_SIZE"], bold=True
         )
 
-    # Chú thích cuối trang (footnotes) — đặt sau khối chữ ký, ngăn cách bằng đường kẻ ngắn
-    fns = norm_doc.get("footnotes") or []
-    if fns:
-        p_fl = doc.add_paragraph()
-        p_fl.paragraph_format.space_before = Pt(10)
-        p_fl.paragraph_format.space_after = Pt(2)
-        r_fl = p_fl.add_run("-----")
-        r_fl.font.name = "Times New Roman"
-        r_fl.font.size = Pt(10)
-        r_fl.bold = True
-        for fn in fns:
-            p_fn = doc.add_paragraph()
-            p_fn.paragraph_format.space_before = Pt(0)
-            p_fn.paragraph_format.space_after = Pt(0)
-            _add_runs_with_placeholder_highlight(p_fn, f"[^{fn['n']}]", 10)
-            _add_runs_with_placeholder_highlight(p_fn, " " + fn["text"], 10)
-
     buf = io.BytesIO()
     doc.save(buf)
-    return buf.getvalue()
+    base_bytes = buf.getvalue()
+    fns = norm_doc.get("footnotes") or []
+    if fns:
+        return _inject_native_footnotes(base_bytes, fns)
+    return base_bytes
+
+
+def _inject_native_footnotes(docx_bytes: bytes, footnotes: list[dict[str, str]]) -> bytes:
+    """Inject word/footnotes.xml and required relationships into DOCX zip for true Word-native footnotes."""
+    if not footnotes:
+        return docx_bytes
+
+    fn_xml_parts = [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n',
+        '<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">\n',
+        '  <w:footnote w:type="separator" w:id="-1">\n',
+        '    <w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p>\n',
+        '  </w:footnote>\n',
+        '  <w:footnote w:type="continuationSeparator" w:id="0">\n',
+        '    <w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p>\n',
+        '  </w:footnote>\n',
+    ]
+    for fn in footnotes:
+        n_str = str(fn.get("n", "1"))
+        text_escaped = (
+            str(fn.get("text", ""))
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+        fn_xml_parts.append(
+            f'  <w:footnote w:id="{n_str}">\n'
+            f'    <w:p>\n'
+            f'      <w:pPr>\n'
+            f'        <w:pStyle w:val="FootnoteText"/>\n'
+            f'        <w:spacing w:before="0" w:after="20" w:line="240" w:lineRule="auto"/>\n'
+            f'      </w:pPr>\n'
+            f'      <w:r>\n'
+            f'        <w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr>\n'
+            f'        <w:footnoteRef/>\n'
+            f'      </w:r>\n'
+            f'      <w:r>\n'
+            f'        <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="20"/></w:rPr>\n'
+            f'        <w:t xml:space="preserve"> {text_escaped}</w:t>\n'
+            f'      </w:r>\n'
+            f'    </w:p>\n'
+            f'  </w:footnote>\n'
+        )
+    fn_xml_parts.append('</w:footnotes>')
+    fn_xml_bytes = "".join(fn_xml_parts).encode("utf-8")
+
+    out_buf = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as zin:
+        with zipfile.ZipFile(out_buf, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                if item.filename == "word/_rels/document.xml.rels":
+                    rels_data = zin.read(item.filename).decode("utf-8")
+                    if "footnotes.xml" not in rels_data:
+                        fn_rel = '<Relationship Id="rIdFootnotes" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>'
+                        rels_data = rels_data.replace("</Relationships>", f"{fn_rel}</Relationships>")
+                    zout.writestr(item, rels_data.encode("utf-8"))
+                elif item.filename == "[Content_Types].xml":
+                    ct_data = zin.read(item.filename).decode("utf-8")
+                    if "footnotes.xml" not in ct_data:
+                        fn_ct = '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>'
+                        ct_data = ct_data.replace("</Types>", f"{fn_ct}</Types>")
+                    zout.writestr(item, ct_data.encode("utf-8"))
+                else:
+                    zout.writestr(item, zin.read(item.filename))
+            zout.writestr("word/footnotes.xml", fn_xml_bytes)
+
+    return out_buf.getvalue()
 
 
 # Re-export for backwards compatibility

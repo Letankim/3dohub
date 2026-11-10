@@ -104,6 +104,35 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     };
   }, []);
 
+  // Triệt để loại bỏ mọi banner thông báo bản quyền Syncfusion khỏi DOM
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const purgeBanner = () => {
+      try {
+        const els = document.querySelectorAll(
+          '.sf-license-validation-banner, [class*="sf-license"], [class*="license-validation"], [id*="license"]'
+        );
+        els.forEach((el) => el.remove());
+        const allDivs = document.body.querySelectorAll('div');
+        allDivs.forEach((d) => {
+          if (
+            (d.textContent?.includes('The included Syncfusion') ||
+              d.textContent?.includes('Claim your free account')) &&
+            d.querySelector('a[href*="syncfusion.com"]')
+          ) {
+            d.remove();
+          }
+        });
+      } catch {
+        // an toàn
+      }
+    };
+    purgeBanner();
+    const obs = new MutationObserver(purgeBanner);
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+
   /** Mở tài liệu vào trình soạn thảo:
    * - Nếu có normResult.sfdt (sau khi bấm Chuẩn hóa hoặc chọn mẫu): mở bản chuẩn hóa
    * - Nếu chưa chuẩn hóa: nạp bản nháp ban đầu vào để người dùng soạn thảo
@@ -332,14 +361,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
 
       <DocEditorLogicAlert normResult={normResult} onOpenLogicModal={onOpenLogicModal} />
 
-      {licenseChecked && !hasLicense && (
-        <Alert
-          type="warning"
-          showIcon
-          banner
-          message="Chưa cấu hình biến môi trường SYNCFUSION_LICENSE_KEY trên máy chủ — trình soạn thảo đang chạy chế độ dùng thử."
-        />
-      )}
+
 
       <div style={{ height: 'calc(100vh - 230px)', minHeight: 620 }}>
         {licenseChecked && (

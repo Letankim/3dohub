@@ -5,6 +5,7 @@ import { Button, Card, Col, Input, Row, Space, Tag, Typography } from 'antd';
 import {
   FileWordOutlined,
   FileExcelOutlined,
+  FilePdfOutlined,
   LinkOutlined,
   QrcodeOutlined,
   SearchOutlined,
@@ -20,6 +21,7 @@ export interface UtilitiesHubPageProps {
   onOpenExcelModule: () => void;
   onOpenShortLinkModule?: () => void;
   onOpenQrCodeModule?: () => void;
+  onOpenPdfModule?: () => void;
 }
 
 interface UtilityCardItem {
@@ -44,6 +46,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
   onOpenExcelModule,
   onOpenShortLinkModule,
   onOpenQrCodeModule,
+  onOpenPdfModule,
 }) => {
   const [search, setSearch] = useState('');
 
@@ -145,6 +148,34 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
           onOpenQrCodeModule();
         } else if (typeof window !== 'undefined') {
           window.location.href = '/tien-ich/tao-ma-qr';
+        }
+      },
+    },
+    {
+      id: 'util-xu-ly-pdf',
+      code: 'XU_LY_PDF',
+      path: '/tien-ich/xu-ly-pdf',
+      title: 'Bộ tiện ích xử lý PDF',
+      category: 'Tiện ích tài liệu & văn phòng',
+      description:
+        'Công cụ toàn diện xử lý tệp PDF trực quan: Nén giảm dung lượng dễ dàng gửi qua Email và Zalo, Tách dải trang hoặc xuất từng trang đóng gói ZIP, Gộp nhiều tài liệu theo thứ tự, Sắp xếp và xoay hướng trang linh hoạt.',
+      features: [
+        'Nén PDF với 3 mức độ tối ưu dung lượng và xem trước tỷ lệ giảm',
+        'Tách trang theo dải (ví dụ: 1-5, 8, 11-15) hoặc bấm chọn trên lưới hình thu nhỏ',
+        'Xuất từng trang thành các tệp riêng lẻ và tự động đóng gói tệp nén ZIP',
+        'Gộp nhiều tệp PDF, kéo thả sắp xếp thứ tự và xoay hướng trang 90°/180°',
+      ],
+      badge: 'Mới',
+      badgeColor: 'red',
+      icon: <FilePdfOutlined style={{ fontSize: 24, color: '#DC2626' }} />,
+      iconBg: '#FEF2F2',
+      iconBorder: '#FECACA',
+      actionLabel: 'Mở tiện ích',
+      onAction: () => {
+        if (onOpenPdfModule) {
+          onOpenPdfModule();
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/tien-ich/xu-ly-pdf';
         }
       },
     },

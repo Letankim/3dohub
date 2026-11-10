@@ -31,8 +31,25 @@ code {
 
 /* Ẩn hoàn toàn thông báo bản quyền Syncfusion trên giao diện người dùng */
 .sf-license-validation-banner,
+.sf-license-validation-link,
+.sf-license-validation-close,
 .e-license-warning,
-div[class*="sf-license"] {
+div[class*="sf-license"],
+div[class*="license-validation"],
+div[id*="syncfusion-license"],
+div[id*="license-warning"] {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  z-index: -99999 !important;
+  overflow: hidden !important;
 }
 

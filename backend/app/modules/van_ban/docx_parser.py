@@ -51,21 +51,61 @@ def _extract_p_text_with_footnotes(
     id_to_seq: dict[str, int],
     ordered_footnotes: list[tuple[str, str]],
 ) -> str:
-    """Extract text from a <w:p> element, converting <w:footnoteReference> to [^n]."""
+    """Extract text from a <w:p> element, converting <w:footnoteReference> and superscript runs to [^n]."""
     parts: list[str] = []
 
-    for el in p_el.iter():
-        tag = el.tag.split("}")[-1]
-        if tag == "t" and el.text:
-            parts.append(el.text)
+    for child in p_el:
+        tag = child.tag.split("}")[-1]
+        if tag == "r":
+            fn_ref = child.find(f"{{{_W_NS}}}footnoteReference")
+            if fn_ref is not None:
+                fn_id = fn_ref.attrib.get(f"{{{_W_NS}}}id") or fn_ref.attrib.get("id")
+                if fn_id and fn_id in footnotes_map:
+                    if fn_id not in id_to_seq:
+                        seq_num = len(id_to_seq) + 1
+                        id_to_seq[fn_id] = seq_num
+                        ordered_footnotes.append((str(seq_num), footnotes_map[fn_id]))
+                    parts.append(f"[^{id_to_seq[fn_id]}]")
+                elif fn_id:
+                    parts.append(f"[^{fn_id}]")
+                continue
+
+            rPr = child.find(f"{{{_W_NS}}}rPr")
+            is_sup = False
+            if rPr is not None:
+                va = rPr.find(f"{{{_W_NS}}}vertAlign")
+                if va is not None and (
+                    va.attrib.get(f"{{{_W_NS}}}val") == "superscript"
+                    or va.attrib.get("val") == "superscript"
+                ):
+                    is_sup = True
+                rs = rPr.find(f"{{{_W_NS}}}rStyle")
+                if rs is not None and (
+                    rs.attrib.get(f"{{{_W_NS}}}val") == "FootnoteReference"
+                    or rs.attrib.get("val") == "FootnoteReference"
+                ):
+                    is_sup = True
+
+            run_text = "".join(t.text for t in child.findall(f"{{{_W_NS}}}t") if t.text)
+            if is_sup and re.fullmatch(r"\d+", run_text.strip()):
+                parts.append(f"[^{run_text.strip()}]")
+            else:
+                parts.append(run_text)
         elif tag == "footnoteReference":
-            fn_id = el.attrib.get(f"{{{_W_NS}}}id") or el.attrib.get("id")
+            fn_id = child.attrib.get(f"{{{_W_NS}}}id") or child.attrib.get("id")
             if fn_id and fn_id in footnotes_map:
                 if fn_id not in id_to_seq:
                     seq_num = len(id_to_seq) + 1
                     id_to_seq[fn_id] = seq_num
                     ordered_footnotes.append((str(seq_num), footnotes_map[fn_id]))
                 parts.append(f"[^{id_to_seq[fn_id]}]")
+            elif fn_id:
+                parts.append(f"[^{fn_id}]")
+        elif tag == "hyperlink":
+            for r in child.findall(f"{{{_W_NS}}}r"):
+                parts.append("".join(t.text for t in r.findall(f"{{{_W_NS}}}t") if t.text))
+        elif tag == "t" and child.text:
+            parts.append(child.text)
 
     text = "".join(parts).strip()
 
@@ -78,7 +118,7 @@ def _extract_p_text_with_footnotes(
         )
 
     # Standardize bottom footnote lines starting with "[^1] Nội dung" -> "[^1]: Nội dung"
-    m_sup = re.match(r"^\[\^(\d+)\]\s*(.+)$", text)
+    m_sup = re.match(r"^\[\^(\d+)\][\.\:\s\t]*(.+)$", text)
     if m_sup:
         text = f"[^{m_sup.group(1)}]: {m_sup.group(2)}"
 
@@ -132,6 +172,24 @@ def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
             seq_num = len(id_to_seq) + 1
             id_to_seq[fn_id] = seq_num
             lines.append(f"[^{seq_num}]: {fn_text}")
+
+    # Identify referenced superscript footnote numbers in document body
+    all_body_text = "\n".join(lines)
+    ref_nums = set(re.findall(r"\[\^(\d+)\]", all_body_text))
+    if ref_nums:
+        cleaned_lines: list[str] = []
+        for l in lines:
+            m_fn_body = re.match(r"^(\d+|[¹²³⁴⁵⁶⁷⁸⁹]+)[\.\:\s\t]+(.+)$", l.strip())
+            if (
+                m_fn_body
+                and m_fn_body.group(1) in ref_nums
+                and not l.strip().lower().startswith(("điều", "dieu", "phần", "chương"))
+            ):
+                n_val = m_fn_body.group(1)
+                cleaned_lines.append(f"[^{n_val}]: {m_fn_body.group(2).strip()}")
+            else:
+                cleaned_lines.append(l)
+        lines = cleaned_lines
 
     return lines
 

@@ -16,7 +16,8 @@ export interface HubNavModule {
     | 'EDITOR_WORKSPACE'
     | 'EXCEL_WORKSPACE'
     | 'SHORT_LINK_WORKSPACE'
-    | 'QR_CODE_WORKSPACE';
+    | 'QR_CODE_WORKSPACE'
+    | 'PDF_WORKSPACE';
 }
 
 export const HUB_MODULES_REGISTRY: HubNavModule[] = [
@@ -68,5 +69,15 @@ export const HUB_MODULES_REGISTRY: HubNavModule[] = [
       'Tạo mã QR đa năng cho URL, Wi-Fi, danh thiếp vCard, văn bản, email với tùy biến màu sắc, logo và tải ảnh PNG/SVG',
     category: 'MAIN_HUB',
     targetTab: 'QR_CODE_WORKSPACE',
+  },
+  {
+    key: 'pdf-module',
+    code: 'TIEN_ICH_PDF',
+    label: 'Tiện ích PDF',
+    path: '/tien-ich/xu-ly-pdf',
+    shortDesc:
+      'Bộ công cụ nén file, trích xuất trang, ghép nối và sắp xếp tài liệu PDF nhanh chóng, tiện lợi',
+    category: 'MAIN_HUB',
+    targetTab: 'PDF_WORKSPACE',
   },
 ];
