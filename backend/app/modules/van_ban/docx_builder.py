@@ -140,8 +140,11 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
     tbl_h.alignment = WD_TABLE_ALIGNMENT.CENTER
     _remove_table_borders(tbl_h)
 
+    tbl_h.autofit = False
     c_left = tbl_h.cell(0, 0)
     c_right = tbl_h.cell(0, 1)
+    tbl_h.columns[0].width = Mm(nums["HDR_LEFT_MM"])
+    tbl_h.columns[1].width = Mm(nums["HDR_RIGHT_MM"])
     c_left.width = Mm(nums["HDR_LEFT_MM"])
     c_right.width = Mm(nums["HDR_RIGHT_MM"])
 

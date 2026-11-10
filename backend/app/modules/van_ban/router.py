@@ -29,6 +29,7 @@ from app.modules.van_ban.docx_parser import (
     extract_lines_from_docx_bytes,
 )
 from app.modules.van_ban.sfdt_builder import build_sfdt
+from app.modules.van_ban.header_layout import apply_header_layout
 from app.modules.van_ban.schemas import (
     NormalizeTextRequest,
     GenerateTemplateRequest,
@@ -47,6 +48,7 @@ def _build_full_normalization_payload(
     norm_doc = normalize_document_lines(
         raw_lines, force_profile=profile_id, existing_footnotes=existing_footnotes
     )
+    apply_header_layout(norm_doc)
     warnings = validate_document_logic(norm_doc)
     a4_html = render_a4_preview_html(norm_doc)
     mso_html = render_mso_clipboard_html(norm_doc)

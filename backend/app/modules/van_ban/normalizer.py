@@ -27,6 +27,7 @@ from app.modules.van_ban.detector import (
     is_signature_auth,
     is_signature_role,
 )
+from app.modules.van_ban.header_layout import apply_header_layout
 
 
 def classify_body_paragraph(line: str, profile_id: str) -> dict[str, Any]:
@@ -424,7 +425,7 @@ def normalize_document_lines(
             viet_tat = m_vt.group(1)
     dia_danh = date_line.split(",")[0].strip() if "," in date_line else ""
 
-    return {
+    res = {
         "detected_profile": res_info["detected_profile"],
         "applied_profile": pid,
         "profile_source": res_info["source"],
@@ -467,4 +468,6 @@ def normalize_document_lines(
         },
         "raw_cleaned_lines": cleaned,
     }
+    apply_header_layout(res)
+    return res
 

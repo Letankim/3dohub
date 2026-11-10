@@ -328,6 +328,27 @@ table {
     mso-table-rspace:0pt;
     mso-border-alt:none;
 }
+span.MsoFootnoteReference {
+    vertical-align:super;
+    font-size:10.0pt;
+    font-family:'Times New Roman',serif;
+    color:#000000;
+    text-decoration:none;
+}
+p.MsoFootnoteText, li.MsoFootnoteText, div.MsoFootnoteText {
+    mso-style-name:"Footnote Text";
+    margin:0cm;
+    margin-bottom:.0001pt;
+    mso-pagination:widow-orphan;
+    font-size:10.0pt;
+    font-family:'Times New Roman',serif;
+    color:#000000;
+    line-height:1.25;
+}
+a.msomark, a:link, span.MsoHyperlink, a:visited {
+    color:inherit;
+    text-decoration:none;
+}
 u {text-decoration:underline;}
 b, strong {font-weight:bold;}
 i, em {font-style:italic;}

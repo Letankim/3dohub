@@ -33,7 +33,7 @@ def _format_run(
     return res
 
 
-def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
+def _build_body_inner_html(norm_doc: dict[str, Any], mso: bool = False) -> str:
     """Build the core document tables and paragraphs with inline MSO + CSS styles."""
     prof = norm_doc["profile"]
     nums = prof["numbers"]
@@ -69,7 +69,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         inner = _format_run(org, bold=is_bold)
         left_parts.append(
             f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{organ_size}pt;font-weight:{weight};line-height:1.25;">{inner}</p>'
+            f'font-size:{organ_size}pt;font-weight:{weight};line-height:1.25;white-space:nowrap;">{inner}</p>'
         )
 
     if is_dang:
@@ -87,7 +87,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
     if hdr.get("doc_number"):
         left_parts.append(
             f'<p align="center" style="margin:2pt 0 0 0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{doc_num_size}pt;line-height:1.25;">'
+            f'font-size:{doc_num_size}pt;line-height:1.25;white-space:nowrap;">'
             f'{_format_run(hdr["doc_number"])}</p>'
         )
 
@@ -108,29 +108,29 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         inner_motto = _format_run(motto_lines[0], bold=True, underline=True)
         right_parts.append(
             f'<p align="{right_align}" style="margin:0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["PARTY_MOTTO_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_motto}</p>'
+            f'font-size:{nums["PARTY_MOTTO_SIZE"]}pt;font-weight:bold;line-height:1.25;white-space:nowrap;">{inner_motto}</p>'
         )
     elif len(motto_lines) >= 2:
         inner_qh = _format_run(motto_lines[0], bold=True)
         inner_tn = _format_run(motto_lines[1], bold=True, underline=True)
         right_parts.append(
             f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["QH_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_qh}</p>'
+            f'font-size:{nums["QH_SIZE"]}pt;font-weight:bold;line-height:1.25;white-space:nowrap;">{inner_qh}</p>'
         )
         right_parts.append(
             f'<p align="center" style="margin:0;text-align:center;font-family:\'Times New Roman\',serif;'
-            f'font-size:{nums["TN_SIZE"]}pt;font-weight:bold;line-height:1.25;">{inner_tn}</p>'
+            f'font-size:{nums["TN_SIZE"]}pt;font-weight:bold;line-height:1.25;white-space:nowrap;">{inner_tn}</p>'
         )
 
     if hdr.get("date_line"):
         inner_date = _format_run(hdr["date_line"], italic=True)
         right_parts.append(
             f'<p align="{right_align}" style="margin:4pt 0 0 0;text-align:{right_align};font-family:\'Times New Roman\',serif;'
-            f'font-size:{date_size}pt;font-style:italic;line-height:1.25;">{inner_date}</p>'
+            f'font-size:{date_size}pt;font-style:italic;line-height:1.25;white-space:nowrap;">{inner_date}</p>'
         )
 
     header_table_html = (
-        '<table style="width:100%;border-collapse:collapse;border:none;mso-border-alt:none;'
+        '<table style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;mso-border-alt:none;'
         'mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:12pt;" border="0" cellspacing="0" cellpadding="0">'
         "<tr>"
         f'<td style="width:{left_w_pct}%;vertical-align:top;padding:0 4pt 0 0;border:none;mso-border-alt:none;">'
@@ -326,25 +326,55 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
 
     fns = norm_doc.get("footnotes") or []
     footnotes_html = ""
-    if fns:
-        rows = "".join(
-            f'<p style="margin:0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1.2;">'
-            f"<sup>{html.escape(str(fn['n']))}</sup> {_highlight_brackets_html(fn['text'])}</p>"
-            for fn in fns
-        )
-        footnotes_html = (
-            '<p style="margin:10pt 0 2pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;">'
-            "<b>-----</b></p>" + rows
-        )
-
-    return (
+    main_html = (
         header_table_html
         + "".join(title_parts)
         + kg_html
         + "".join(body_html_list)
         + footer_table_html
-        + footnotes_html
     )
+    if fns and mso:
+        main_html = re.sub(
+            r"<sup>(\d+)</sup>",
+            lambda m: (
+                f'<span class="MsoFootnoteReference"><a style="mso-footnote-id:ftn{m.group(1)};text-decoration:none;color:#000000;" '
+                f'href="#_ftn{m.group(1)}" name="_ftnref{m.group(1)}">'
+                f'<span style="mso-special-character:footnote;font-size:10pt;"><!--[if !supportFootnotes]--><sup>{m.group(1)}</sup><!--[endif]--></span></a></span>'
+            ),
+            main_html,
+        )
+        items = ""
+        for fn in fns:
+            n = html.escape(str(fn["n"]))
+            fn_body = _highlight_brackets_html(fn["text"])
+            items += (
+                f'<div style="mso-element:footnote" id="ftn{n}">\n'
+                f'<p class="MsoFootnoteText" style="margin:0 0 2pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1.25;color:#000000;">'
+                f'<a style="mso-footnote-id:ftn{n};text-decoration:none;color:#000000;" href="#_ftnref{n}" name="_ftn{n}">'
+                f'<span class="MsoFootnoteReference"><span style="mso-special-character:footnote;font-size:10pt;"><!--[if !supportFootnotes]--><sup>{n}</sup> <!--[endif]--></span></span></a>'
+                f'{fn_body}</p>\n</div>\n'
+            )
+        footnotes_html = (
+            '<div style="mso-element:footnote-list">\n'
+            '<!--[if !supportFootnotes]-->\n'
+            '<p style="margin:14pt 0 4pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;">'
+            '<span style="border-top:1px solid #000000;display:inline-block;width:5cm;padding-top:2pt;"></span></p>\n'
+            '<!--[endif]-->\n'
+            + items
+            + '</div>\n'
+        )
+    elif fns:
+        rows = "".join(
+            f'<p style="margin:0 0 2pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1.25;color:#000000;">'
+            f'<sup>{html.escape(str(fn["n"]))}</sup> {_highlight_brackets_html(fn["text"])}</p>'
+            for fn in fns
+        )
+        footnotes_html = (
+            '<div style="margin-top:14pt;padding-top:4pt;border-top:1px solid #000000;width:5cm;margin-bottom:4pt;"></div>'
+            + rows
+        )
+
+    return main_html + footnotes_html
 
 
 def render_a4_preview_html(norm_doc: dict[str, Any]) -> str:
@@ -362,7 +392,7 @@ def render_a4_preview_html(norm_doc: dict[str, Any]) -> str:
 
 def render_mso_clipboard_html(norm_doc: dict[str, Any]) -> str:
     """Render MS Word-compatible HTML (with MSO page margins & multi-page section styles) for Clipboard Copy/Paste."""
-    inner = _build_body_inner_html(norm_doc)
+    inner = _build_body_inner_html(norm_doc, mso=True)
     return (
         '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
         'xmlns:w="urn:schemas-microsoft-com:office:word" '
@@ -397,6 +427,27 @@ def render_mso_clipboard_html(norm_doc: dict[str, Any]) -> str:
         "    mso-table-lspace:0pt;\n"
         "    mso-table-rspace:0pt;\n"
         "    mso-border-alt:none;\n"
+        "}\n"
+        "span.MsoFootnoteReference {\n"
+        "    vertical-align:super;\n"
+        "    font-size:10.0pt;\n"
+        "    font-family:'Times New Roman',serif;\n"
+        "    color:#000000;\n"
+        "    text-decoration:none;\n"
+        "}\n"
+        "p.MsoFootnoteText, li.MsoFootnoteText, div.MsoFootnoteText {\n"
+        '    mso-style-name:"Footnote Text";\n'
+        "    margin:0cm;\n"
+        "    margin-bottom:.0001pt;\n"
+        "    mso-pagination:widow-orphan;\n"
+        "    font-size:10.0pt;\n"
+        "    font-family:'Times New Roman',serif;\n"
+        "    color:#000000;\n"
+        "    line-height:1.25;\n"
+        "}\n"
+        "a.msomark, a:link, span.MsoHyperlink, a:visited {\n"
+        "    color:inherit;\n"
+        "    text-decoration:none;\n"
         "}\n"
         "u {text-decoration:underline;}\n"
         "b, strong {font-weight:bold;}\n"
