@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Card, List, Tag, Typography, Badge, Empty, Space } from 'antd';
+import React, { useState } from 'react';
+import { Card, List, Tag, Typography, Badge, Empty, Space, Segmented } from 'antd';
 import {
   CheckCircleFilled,
   ExclamationCircleFilled,
@@ -25,6 +25,17 @@ export const LogicReportPanel: React.FC<LogicReportPanelProps> = ({
   legalBasis,
   executionMs,
 }) => {
+  const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
+
+  const errorCount = warnings.filter((w) => w.severity === 'ERROR').length;
+  const warningCount = warnings.filter((w) => w.severity === 'WARNING').length;
+  const infoCount = warnings.filter((w) => w.severity === 'INFO').length;
+
+  const filteredWarnings =
+    filterSeverity === 'ALL'
+      ? warnings
+      : warnings.filter((w) => w.severity === filterSeverity);
+
   const getSeverityBadge = (severity: LogicWarningItem['severity']) => {
     switch (severity) {
       case 'ERROR':
@@ -58,7 +69,7 @@ export const LogicReportPanel: React.FC<LogicReportPanelProps> = ({
             <Badge
               count={warnings.length}
               style={{
-                backgroundColor: warnings.length === 0 ? '#059669' : '#D97706',
+                backgroundColor: warnings.length === 0 ? '#059669' : errorCount > 0 ? '#DC2626' : '#D97706',
               }}
             />
           </Space>
@@ -95,6 +106,41 @@ export const LogicReportPanel: React.FC<LogicReportPanelProps> = ({
         </div>
       )}
 
+      {warnings.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <Segmented
+            value={filterSeverity}
+            onChange={(val) => setFilterSeverity(String(val))}
+            options={[
+              { label: `Tất cả (${warnings.length})`, value: 'ALL' },
+              {
+                label: (
+                  <span style={{ color: errorCount > 0 ? '#DC2626' : undefined, fontWeight: errorCount > 0 ? 600 : 400 }}>
+                    Lỗi ({errorCount})
+                  </span>
+                ),
+                value: 'ERROR',
+                disabled: errorCount === 0,
+              },
+              {
+                label: (
+                  <span style={{ color: warningCount > 0 ? '#D97706' : undefined, fontWeight: warningCount > 0 ? 600 : 400 }}>
+                    Cảnh báo ({warningCount})
+                  </span>
+                ),
+                value: 'WARNING',
+                disabled: warningCount === 0,
+              },
+              {
+                label: `Lưu ý (${infoCount})`,
+                value: 'INFO',
+                disabled: infoCount === 0,
+              },
+            ]}
+          />
+        </div>
+      )}
+
       {warnings.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -109,35 +155,47 @@ export const LogicReportPanel: React.FC<LogicReportPanelProps> = ({
             </Space>
           }
         />
+      ) : filteredWarnings.length === 0 ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có mục nào trong danh mục đã chọn." />
       ) : (
         <List
           size="small"
-          dataSource={warnings}
-          renderItem={(w) => (
-            <List.Item
-              style={{
-                padding: '8px 10px',
-                borderBottom: '1px solid #F1F5F9',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div style={{ width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Space size={6}>
-                    <Tag style={{ margin: 0, fontWeight: 600 }}>#{w.index}</Tag>
-                    <Text strong style={{ fontSize: 13 }}>
-                      {w.category}
-                    </Text>
-                  </Space>
-                  {getSeverityBadge(w.severity)}
+          dataSource={filteredWarnings}
+          renderItem={(w) => {
+            const isErr = w.severity === 'ERROR';
+            const isWarn = w.severity === 'WARNING';
+            const borderCol = isErr ? '#EF4444' : isWarn ? '#F59E0B' : '#3B82F6';
+            const bgCol = isErr ? '#FEF2F2' : isWarn ? '#FFFBEB' : '#F8FAFC';
+
+            return (
+              <List.Item
+                style={{
+                  padding: '10px 12px',
+                  marginBottom: 8,
+                  borderRadius: 4,
+                  border: '1px solid #E2E8F0',
+                  borderLeft: `4px solid ${borderCol}`,
+                  background: bgCol,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
+                    <Space size={6}>
+                      <Tag style={{ margin: 0, fontWeight: 600 }}>#{w.index}</Tag>
+                      <Text strong style={{ fontSize: 13, color: isErr ? '#B91C1C' : isWarn ? '#92400E' : '#1E40AF' }}>
+                        {w.category}
+                      </Text>
+                    </Space>
+                    {getSeverityBadge(w.severity)}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.5 }}>{w.message}</div>
                 </div>
-                <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.45 }}>{w.message}</div>
-              </div>
-            </List.Item>
-          )}
+              </List.Item>
+            );
+          }}
         />
       )}
     </Card>
   );
 };
-

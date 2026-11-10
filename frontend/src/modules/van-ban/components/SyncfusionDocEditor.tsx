@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Select, Tooltip, message } from 'antd';
+import { Alert, Badge, Button, Select, Tooltip, message } from 'antd';
 import {
   ThunderboltFilled,
   CopyOutlined,
@@ -21,6 +21,7 @@ import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
 import { extractTextAndFootnotesFromSfdt } from '../utils/sfdt-extract';
 import { DOC_EDITOR_TOOLBAR_ITEMS, FALLBACK_PROFILES } from './doc-editor-constants';
+import { DocEditorLogicAlert } from './DocEditorLogicAlert';
 
 // Đăng ký module Toolbar một lần an toàn
 try {
@@ -227,6 +228,10 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     }
   };
 
+  const warnings = normResult?.warnings || [];
+  const warnCount = warnings.length;
+  const hasErrors = warnings.some((w) => w.severity === 'ERROR');
+
   return (
     <div
       style={{
@@ -285,9 +290,30 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         <Button icon={<UploadOutlined />} onClick={() => fileInputRef.current?.click()}>
           Mở .docx
         </Button>
-        <Button icon={<AuditOutlined />} onClick={onOpenLogicModal}>
-          Rà soát
-        </Button>
+        <Badge
+          count={warnCount}
+          overflowCount={99}
+          offset={[-2, 2]}
+          style={{
+            backgroundColor: hasErrors ? '#DC2626' : '#D97706',
+            boxShadow: '0 0 0 1px #fff',
+            fontWeight: 600,
+          }}
+        >
+          <Button
+            icon={<AuditOutlined />}
+            onClick={onOpenLogicModal}
+            danger={hasErrors}
+            style={{
+              fontWeight: 500,
+              borderColor: hasErrors ? '#F87171' : warnCount > 0 ? '#FBBF24' : (normResult ? '#6EE7B7' : undefined),
+              backgroundColor: hasErrors ? '#FEF2F2' : warnCount > 0 ? '#FFFBEB' : (normResult ? '#ECFDF5' : undefined),
+              color: hasErrors ? '#DC2626' : warnCount > 0 ? '#B45309' : (normResult ? '#047857' : undefined),
+            }}
+          >
+            {warnCount > 0 ? `Rà soát (${warnCount})` : normResult ? 'Rà soát (0 lỗi)' : 'Rà soát'}
+          </Button>
+        </Badge>
         <Button icon={<FileTextOutlined />} onClick={onOpenTemplatesModal}>
           Mẫu chuẩn
         </Button>
@@ -295,6 +321,8 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           Đơn vị
         </Button>
       </div>
+
+      <DocEditorLogicAlert normResult={normResult} onOpenLogicModal={onOpenLogicModal} />
 
       {licenseChecked && !hasLicense && (
         <Alert
