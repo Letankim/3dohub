@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, Button, Radio, Input, Typography, message } from 'antd';
-import { ScissorOutlined, DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
+import { ScissorOutlined, DownloadOutlined, FileZipOutlined, CheckSquareOutlined, BorderOutlined } from '@ant-design/icons';
 import { PdfDropzone } from './PdfDropzone';
 import { PdfFileSummary, PdfPageGrid, PdfResultBanner } from './PdfCommon';
 import { PdfPageThumbnailCard } from './PdfPageThumbnailCard';
@@ -131,8 +131,8 @@ export const PdfSplitTab: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
             <Text strong style={{ color: '#0F172A' }}>Trang cần trích xuất ({selectedCount})</Text>
             <div style={{ display: 'flex', gap: 6 }}>
-              <Button size="small" onClick={() => applySelection(() => true)} style={{ borderRadius: 4 }}>Chọn hết</Button>
-              <Button size="small" onClick={() => applySelection(() => false)} style={{ borderRadius: 4 }}>Bỏ chọn</Button>
+              <Button size="small" icon={<CheckSquareOutlined />} onClick={() => applySelection(() => true)} style={{ borderRadius: 4 }}>Chọn hết</Button>
+              <Button size="small" icon={<BorderOutlined />} onClick={() => applySelection(() => false)} style={{ borderRadius: 4 }}>Bỏ chọn</Button>
             </div>
           </div>
           <Input

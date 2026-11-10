@@ -109,3 +109,47 @@ All validation errors (Pydantic `RequestValidationError` or custom `BusinessVali
 - **Crisp Vector QR Rendering**: Always render QR codes with vector SVG (`<QRCode type="svg" ... />`) rather than raster canvas/PNG on responsive displays to prevent blurry or jagged pixel edges.
 
 
+
+## 11. Client-Side Utility Module Architecture (`pdf`, `image`, ...)
+- **Folder layout** (mirror `src/modules/pdf/`): `src/modules/<name>/{<Name>HubWorkspace.tsx, components/, services/, hooks/, types/}`; route in `src/app/tien-ich/<slug>/page.tsx` rendering `VanBanHubWorkspace initialMode="<NAME>_WORKSPACE"`.
+- **Registering a new module (all 6 places, none optional)**: `config/modules-registry.ts` (entry + `targetTab`), `VanBanHubWorkspace.tsx` (initialMode union, `workspaceTab` union, `navigateTo<Name>`, render branch, breadcrumb title, `isStandaloneTool`), `SidebarNav.tsx` (icon), `UtilitiesHubPage.tsx` (card), the route `page.tsx`, and the `useEffect([pathname])` mapping.
+- **Single responsibility**: `services/` = pure logic (no React, no antd); `components/` = UI only; shared UI lives in `components/<Name>Common.tsx`; one tab/feature per file (<= 250–350 lines).
+- **File-processing utilities run in the browser.** Never upload user files to the backend. Never write technical wording in the UI such as "client-side", "zero upload", "không gửi lên server".
+- **Heavy libraries** (`pdfjs-dist`, image codecs, workers) MUST be dynamically imported inside functions guarded by `typeof window !== 'undefined'`. Worker/WASM assets are served from `frontend/public/` (no CDN dependency).
+- **Never freeze the UI**: long loops report progress via callback and yield to the event loop; use `OffscreenCanvas`/Web Worker for batch image work; free canvases (`canvas.width = 0`) and `URL.revokeObjectURL` after use.
+- **Original data is never overwritten**: keep the source `File`/`ArrayBuffer`; every operation produces a new Blob. If the output is not smaller/better than the input, return the original and say so.
+
+## 12. Mobile-First Responsive Layout Rules (`antd`)
+- Use `useIsMobile()` (`Grid.useBreakpoint`, `md === false`) instead of fixed pixel widths. Breakpoint: `< 768px` = phone.
+- **Phone**: primary/result buttons are `block` (full width); button groups stack vertically; card body padding `12`, desktop `20`; thumbnails/cards in CSS grid `repeat(auto-fill, minmax(96px, 1fr))` (desktop `130px`), never fixed `width: 146`.
+- Text that can be long (file names, URLs) uses `ellipsis` or `wordBreak: 'break-all'` and the parent has `minWidth: 0`. Tabs stay on one row with short labels (<= 1 word, e.g. "Nén", "Tách", "Gộp").
+- Modals use `width="min(94vw, <max>px)"` and `centered`; images inside use `maxHeight: calc(100vh - 230px)`.
+- Initial empty state of every tool = **one primary button only** ("Chọn file ...") inside a dashed drop box; no titles, subtitles, tips or hint paragraphs.
+
+## 13. UI Copy Rules (Vietnamese, ultra-concise)
+- Section titles <= 3 words: `Phương thức`, `Xem trước`, `Mức nén`, `Kết quả`. Button labels <= 3 words: `Nén file`, `Tải file`, `Đổi file`, `Chọn hết`, `Bỏ chọn`.
+- Success banners: one short title (`Đã nén xong`) + the key numbers. No marketing sentences, no tips.
+- Expected-result promises ("tiết kiệm 60–80%") are forbidden unless computed from real output.
+
+## 14. Mandatory Icon Map for Action Buttons (`@ant-design/icons`)
+EVERY `<Button>` that performs an action MUST have `icon={...}` (icon-only buttons need a `Tooltip`). No exceptions, including small/secondary/toolbar buttons. Standard map:
+
+| Action | Icon | Action | Icon |
+|---|---|---|---|
+| Chọn file / Thêm file | `UploadOutlined` | Chọn hết | `CheckSquareOutlined` |
+| Bỏ chọn | `BorderOutlined` | Xem trước | `EyeOutlined` |
+| Tải về | `DownloadOutlined` | Tải ZIP | `FileZipOutlined` |
+| Xóa / Xóa hết | `DeleteOutlined` | Hoàn tác | `UndoOutlined` |
+| Đổi file / Làm lại | `RedoOutlined` | Xoay | `RotateRightOutlined` |
+| Nén | `CompressOutlined` | Tách | `ScissorOutlined` |
+| Gộp | `MergeCellsOutlined` | Chuyển đổi định dạng | `SwapOutlined` |
+| Lên / Xuống | `ArrowUpOutlined` / `ArrowDownOutlined` | Trước / Sau | `LeftOutlined` / `RightOutlined` |
+| Đóng / Hủy | `CloseOutlined` | Sao chép | `CopyOutlined` |
+| Lưu | `SaveOutlined` | Cắt ảnh | `ScissorOutlined` / `BorderInnerOutlined` |
+| Áp dụng cho tất cả | `CheckCircleOutlined` | Cài đặt | `SettingOutlined` |
+
+## 15. Quality-Preserving Image Processing Rules
+- Default output = **lossless or visually lossless**: PNG stays PNG (lossless re-encode), JPEG recompress default quality `0.85–0.9`, never below `0.6` without explicit user choice; WebP default `0.9`.
+- Never upscale; resize only when the user sets a target. Use `createImageBitmap` + `imageSmoothingQuality = 'high'`, apply EXIF orientation, preserve ICC/EXIF only when the user opts in (default: strip GPS for privacy).
+- Transparency: converting alpha PNG/WebP -> JPEG fills a user-selectable background (default white), warn once.
+- Always show before/after size + dimensions + side-by-side (or slider) preview; "keep original" is the fallback if the result is larger.

@@ -156,8 +156,8 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         )
     if title_blk.get("title") or title_blk.get("summary"):
         title_parts.append(
-            '<p align="center" style="margin:2pt auto 8pt auto;text-align:center;'
-            'font-family:\'Times New Roman\',serif;font-size:11pt;line-height:1;color:#000000;">'
+            f'<p align="center" style="margin:2pt auto 14pt auto;text-align:center;'
+            f'font-family:\'Times New Roman\',serif;font-size:{summary_size}pt;font-weight:bold;line-height:1;color:#000000;">'
             '<b>-----</b></p>'
         )
 

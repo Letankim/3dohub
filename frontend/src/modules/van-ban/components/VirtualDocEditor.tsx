@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { extractDocumentTextFromA4Sheet } from '../utils/dom-text-extractor';
+import { copyMsoHtmlToClipboard } from '../utils/clipboard-export';
 import { WordRibbonToolbar } from './WordRibbonToolbar';
 import { WordInspectorSidebar } from './WordInspectorSidebar';
 
@@ -276,39 +277,74 @@ export const VirtualDocEditor: React.FC<VirtualDocEditorProps> = ({
   };
 
   const handleCopyMsoWordFormat = async () => {
-    // Extract inner content from interactive A4 sheet without outer canvas wrapper styles
-    const sheetEl =
-      a4SheetRef.current?.querySelector<HTMLElement>('.a4-preview-sheet, .a4-sheet') ||
-      a4SheetRef.current;
-    const liveInner = sheetEl ? sheetEl.innerHTML : normResult?.a4_preview_html || '';
-    const msoHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset='utf-8'>
-<style>
-@page Section1 {size:21.0cm 29.7cm; margin:2.0cm 1.5cm 2.0cm 3.0cm; mso-header-margin:1.0cm; mso-footer-margin:1.0cm; mso-title-page:yes;}
-div.Section1 {page:Section1; font-family:'Times New Roman',serif;}
-table {border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;}
-u {text-decoration:underline;}
-b, strong {font-weight:bold;}
-i, em {font-style:italic;}
-</style></head>
-<body><div class='Section1'>${liveInner}</div></body></html>`;
-
-    const plainText = a4SheetRef.current?.innerText || normResult?.normalized_text || rawText;
-
-    try {
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        const htmlBlob = new Blob([msoHtml], { type: 'text/html' });
-        const textBlob = new Blob([plainText], { type: 'text/plain' });
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob }),
-        ]);
+    // 1. Ưu tiên MSO HTML chuẩn từ backend để dán vào Word giữ 100% lề A4, bảng không viền và font
+    if (normResult?.mso_clipboard_html && !isDirtyRef.current) {
+      const ok = await copyMsoHtmlToClipboard(
+        normResult.mso_clipboard_html,
+        normResult.normalized_text || rawText
+      );
+      if (ok) {
         message.success(
-          'Đã Copy chuẩn định dạng Microsoft Word! Bấm Ctrl+V vào Word giữ nguyên bảng 2 cột & Times New Roman.'
+          'Đã copy định dạng chuẩn Microsoft Word! Dán (Ctrl+V) vào Word giữ nguyên bảng 2 cột & Times New Roman.'
         );
         return;
       }
-    } catch {
-      // Fallback DOM copy
+    }
+
+    // 2. Fallback khi người dùng đã chỉnh sửa trực tiếp trên canvas
+    const sheetEl =
+      a4SheetRef.current?.querySelector<HTMLElement>('.a4-preview-sheet, .a4-sheet') ||
+      a4SheetRef.current;
+    const innerContent = sheetEl ? sheetEl.innerHTML : normResult?.a4_preview_html || '';
+    const fullMsoHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset='utf-8'>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal {
+    mso-style-parent:"";
+    margin:0cm;
+    margin-bottom:.0001pt;
+    mso-pagination:widow-orphan;
+    font-size:13.0pt;
+    font-family:"Times New Roman",serif;
+    mso-fareast-font-family:"Times New Roman";
+}
+@page Section1 {
+    size:21.0cm 29.7cm;
+    margin:2.0cm 1.5cm 2.0cm 3.0cm;
+    mso-header-margin:1.0cm;
+    mso-footer-margin:1.0cm;
+    mso-paper-source:0;
+}
+div.Section1 {
+    page:Section1;
+    font-family:'Times New Roman',serif;
+}
+table {
+    border-collapse:collapse;
+    mso-table-lspace:0pt;
+    mso-table-rspace:0pt;
+    mso-border-alt:none;
+}
+u {text-decoration:underline;}
+b, strong {font-weight:bold;}
+i, em {font-style:italic;}
+-->
+</style></head>
+<body><div class='Section1'><!--StartFragment-->
+${innerContent}
+<!--EndFragment--></div></body></html>`;
+
+    const plainText = a4SheetRef.current?.innerText || normResult?.normalized_text || rawText;
+
+    const ok = await copyMsoHtmlToClipboard(fullMsoHtml, plainText);
+    if (ok) {
+      message.success(
+        'Đã Copy chuẩn định dạng Microsoft Word! Bấm Ctrl+V vào Word giữ nguyên bảng 2 cột & Times New Roman.'
+      );
+      return;
     }
 
     if (a4SheetRef.current) {
@@ -588,6 +624,13 @@ i, em {font-style:italic;}
               contentEditable
               suppressContentEditableWarning
               onInput={handleSheetInput}
+              onCopy={(e) => {
+                if (normResult?.mso_clipboard_html && !isDirtyRef.current) {
+                  e.clipboardData.setData('text/html', normResult.mso_clipboard_html);
+                  e.clipboardData.setData('text/plain', normResult.normalized_text || rawText);
+                  e.preventDefault();
+                }
+              }}
               onPaste={(e) => {
                 const pastedText = e.clipboardData?.getData('text/plain');
                 if (pastedText && pastedText.trim().length > 20) {
