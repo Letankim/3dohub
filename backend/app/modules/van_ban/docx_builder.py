@@ -154,7 +154,7 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_line.paragraph_format.space_before = Pt(0)
         p_line.paragraph_format.space_after = Pt(2)
-        _add_runs_with_placeholder_highlight(p_line, "─────────", 10.0, bold=True)
+        _add_runs_with_placeholder_highlight(p_line, "-----", 10.0, bold=True)
 
     if hdr_data.get("doc_number"):
         p_so = c_left.add_paragraph()
@@ -239,7 +239,7 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         p_sep.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_sep.paragraph_format.space_before = Pt(0)
         p_sep.paragraph_format.space_after = Pt(8)
-        r_sep = p_sep.add_run("────────")
+        r_sep = p_sep.add_run("-----")
         r_sep.font.name = "Times New Roman"
         r_sep.font.size = Pt(11)
         r_sep.bold = True
@@ -410,9 +410,10 @@ def build_docx_bytes(norm_doc: dict[str, Any]) -> bytes:
         p_fl = doc.add_paragraph()
         p_fl.paragraph_format.space_before = Pt(10)
         p_fl.paragraph_format.space_after = Pt(2)
-        r_fl = p_fl.add_run("────────")
+        r_fl = p_fl.add_run("-----")
         r_fl.font.name = "Times New Roman"
         r_fl.font.size = Pt(10)
+        r_fl.bold = True
         for fn in fns:
             p_fn = doc.add_paragraph()
             p_fn.paragraph_format.space_before = Pt(0)

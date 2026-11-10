@@ -12,7 +12,7 @@ PT_PER_CM = 28.3465
 PAGE_W, PAGE_H = 595.3, 841.9
 M_TOP, M_BOTTOM, M_LEFT, M_RIGHT = 56.7, 56.7, 85.05, 42.5
 CONTENT_W = round(PAGE_W - M_LEFT - M_RIGHT, 2)
-SEP_LINE = "────────"
+SEP_LINE = "-----"
 _TOKEN_RE = re.compile(r"(\[\^\d+\]|\[[^\]]+\])")
 _ALIGN = {"left": "Left", "right": "Right", "center": "Center", "justify": "Justify"}
 
@@ -151,7 +151,7 @@ def _header_blocks(b: _Builder, norm: dict[str, Any]) -> list[dict[str, Any]]:
     if is_dang:
         left.append(b.p("*", org_size, "Center", bold=True, line=1.0))
     elif orgs and bools["ORGAN_UNDERLINE"]:
-        left.append(b.p("─────", 10, "Center", bold=True, line=1.0))
+        left.append(b.p("-----", 10, "Center", bold=True, line=1.0))
     if hdr.get("doc_number"):
         left.append(b.p(hdr["doc_number"], nums["DOC_NUMBER_SIZE"], "Center", before=2, line=1.0))
     if hdr.get("cv_summary"):

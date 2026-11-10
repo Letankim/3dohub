@@ -20,6 +20,7 @@ import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
 import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
 import { extractTextAndFootnotesFromSfdt } from '../utils/sfdt-extract';
+import { copyMsoHtmlToClipboard } from '../utils/clipboard-export';
 import { DOC_EDITOR_TOOLBAR_ITEMS, FALLBACK_PROFILES } from './doc-editor-constants';
 import { DocEditorLogicAlert } from './DocEditorLogicAlert';
 
@@ -192,22 +193,29 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   };
 
   const handleCopyWord = async () => {
+    // 1. Ưu tiên ghi định dạng chuẩn Microsoft Word (MSO HTML) để khi dán vào Word giữ nguyên lề, bảng, font
+    if (normResult?.mso_clipboard_html) {
+      const ok = await copyMsoHtmlToClipboard(normResult.mso_clipboard_html, normResult.normalized_text || '');
+      if (ok) {
+        message.success('Đã copy định dạng chuẩn Microsoft Word! Dán (Ctrl+V) vào Word giữ nguyên lề A4 và bảng.');
+        return;
+      }
+    }
+
+    // 2. Fallback sang DocumentEditor selection copy
     const editor = containerRef.current?.documentEditor;
-    if (!editor) return;
-    try {
-      editor.selection.selectAll();
-      editor.selection.copy();
-      editor.selection.moveToDocumentStart();
-      message.success('Đã copy toàn bộ văn bản! Bấm Ctrl+V để dán vào Word / Google Docs.');
-    } catch {
-      if (normResult?.mso_clipboard_html && navigator.clipboard?.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([normResult.mso_clipboard_html], { type: 'text/html' }),
-            'text/plain': new Blob([normResult.normalized_text], { type: 'text/plain' }),
-          }),
-        ]);
-        message.success('Đã copy chuẩn định dạng Microsoft Word!');
+    if (editor) {
+      try {
+        editor.selection.selectAll();
+        editor.selection.copy();
+        editor.selection.moveToDocumentStart();
+        if (normResult) {
+          message.success('Đã copy văn bản từ trình soạn thảo! Bấm Ctrl+V để dán.');
+        } else {
+          message.info('Đã copy văn bản! (Mẹo: Bấm nút "Chuẩn hóa" trước để khi dán vào Word chuẩn lề và bảng 100%).');
+        }
+      } catch {
+        message.error('Không thể copy văn bản. Vui lòng bấm Ctrl+A rồi Ctrl+C.');
       }
     }
   };

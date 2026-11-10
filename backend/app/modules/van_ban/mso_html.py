@@ -81,7 +81,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         left_parts.append(
             '<p align="center" style="margin:1pt auto 3pt auto;text-align:center;'
             'font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;color:#000000;">'
-            '<b>─────</b></p>'
+            '<b>-----</b></p>'
         )
 
     if hdr.get("doc_number"):
@@ -130,12 +130,12 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         )
 
     header_table_html = (
-        '<table style="width:100%;border-collapse:collapse;border:none;mso-table-lspace:0pt;mso-table-rspace:0pt;'
-        'margin-bottom:12pt;">'
+        '<table style="width:100%;border-collapse:collapse;border:none;mso-border-alt:none;'
+        'mso-table-lspace:0pt;mso-table-rspace:0pt;margin-bottom:12pt;" border="0" cellspacing="0" cellpadding="0">'
         "<tr>"
-        f'<td style="width:{left_w_pct}%;vertical-align:top;padding:0 4pt 0 0;border:none;">'
+        f'<td style="width:{left_w_pct}%;vertical-align:top;padding:0 4pt 0 0;border:none;mso-border-alt:none;">'
         f'{"".join(left_parts)}</td>'
-        f'<td style="width:{right_w_pct}%;vertical-align:top;padding:0 0 0 4pt;border:none;">'
+        f'<td style="width:{right_w_pct}%;vertical-align:top;padding:0 0 0 4pt;border:none;mso-border-alt:none;">'
         f'{"".join(right_parts)}</td>'
         "</tr></table>"
     )
@@ -158,7 +158,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         title_parts.append(
             '<p align="center" style="margin:2pt auto 8pt auto;text-align:center;'
             'font-family:\'Times New Roman\',serif;font-size:11pt;line-height:1;color:#000000;">'
-            '<b>────────</b></p>'
+            '<b>-----</b></p>'
         )
 
     # Kính gửi Block
@@ -184,12 +184,12 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
                 for it in kg_items
             )
             kg_html = (
-                '<table style="width:100%;border-collapse:collapse;border:none;margin:6pt 0 8pt 0;">'
+                '<table style="width:100%;border-collapse:collapse;border:none;mso-border-alt:none;margin:6pt 0 8pt 0;" border="0" cellspacing="0" cellpadding="0">'
                 "<tr>"
-                f'<td style="width:26%;vertical-align:top;text-align:right;padding-right:6pt;border:none;'
+                f'<td style="width:26%;vertical-align:top;text-align:right;padding-right:6pt;border:none;mso-border-alt:none;'
                 f'font-family:\'Times New Roman\',serif;font-size:{body_size}pt;font-style:{style_it};">'
                 f'{prefix_html}</td>'
-                f'<td style="width:74%;vertical-align:top;border:none;">{rows_kg}</td>'
+                f'<td style="width:74%;vertical-align:top;border:none;mso-border-alt:none;">{rows_kg}</td>'
                 "</tr></table>"
             )
 
@@ -315,11 +315,11 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         )
 
     footer_table_html = (
-        '<table style="width:100%;border-collapse:collapse;border:none;margin-top:14pt;page-break-inside:avoid;">'
+        '<table style="width:100%;border-collapse:collapse;border:none;mso-border-alt:none;margin-top:14pt;page-break-inside:avoid;" border="0" cellspacing="0" cellpadding="0">'
         "<tr>"
-        '<td style="width:50%;vertical-align:top;padding-right:6pt;border:none;">'
+        '<td style="width:50%;vertical-align:top;padding-right:6pt;border:none;mso-border-alt:none;">'
         f'{"".join(left_ftr_parts)}</td>'
-        '<td style="width:50%;vertical-align:top;padding-left:6pt;border:none;">'
+        '<td style="width:50%;vertical-align:top;padding-left:6pt;border:none;mso-border-alt:none;">'
         f'{"".join(right_ftr_parts)}</td>'
         "</tr></table>"
     )
@@ -334,7 +334,7 @@ def _build_body_inner_html(norm_doc: dict[str, Any]) -> str:
         )
         footnotes_html = (
             '<p style="margin:10pt 0 2pt 0;font-family:\'Times New Roman\',serif;font-size:10pt;line-height:1;">'
-            "<b>────────</b></p>" + rows
+            "<b>-----</b></p>" + rows
         )
 
     return (
@@ -366,17 +366,46 @@ def render_mso_clipboard_html(norm_doc: dict[str, Any]) -> str:
     return (
         '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
         'xmlns:w="urn:schemas-microsoft-com:office:word" '
-        'xmlns="http://www.w3.org/TR/REC-html40">'
-        "<head><meta charset='utf-8'>"
-        "<style>"
-        "@page Section1 {size:21.0cm 29.7cm; margin:2.0cm 1.5cm 2.0cm 3.0cm; mso-header-margin:1.0cm; mso-footer-margin:1.0cm; mso-title-page:yes;}"
-        "div.Section1 {page:Section1; font-family:'Times New Roman',serif;}"
-        "table {border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;}"
-        "u {text-decoration:underline;}"
-        "b, strong {font-weight:bold;}"
-        "i, em {font-style:italic;}"
-        "</style></head>"
-        f"<body><div class='Section1'>{inner}</div></body></html>"
+        'xmlns="http://www.w3.org/TR/REC-html40">\n'
+        "<head><meta charset='utf-8'>\n"
+        "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->\n"
+        "<style>\n"
+        "<!--\n"
+        " /* Style Definitions */\n"
+        "p.MsoNormal, li.MsoNormal, div.MsoNormal {\n"
+        '    mso-style-parent:"";\n'
+        "    margin:0cm;\n"
+        "    margin-bottom:.0001pt;\n"
+        "    mso-pagination:widow-orphan;\n"
+        "    font-size:13.0pt;\n"
+        '    font-family:"Times New Roman",serif;\n'
+        "    mso-fareast-font-family:\"Times New Roman\";\n"
+        "}\n"
+        "@page Section1 {\n"
+        "    size:21.0cm 29.7cm;\n"
+        "    margin:2.0cm 1.5cm 2.0cm 3.0cm;\n"
+        "    mso-header-margin:1.0cm;\n"
+        "    mso-footer-margin:1.0cm;\n"
+        "    mso-paper-source:0;\n"
+        "}\n"
+        "div.Section1 {\n"
+        "    page:Section1;\n"
+        "    font-family:'Times New Roman',serif;\n"
+        "}\n"
+        "table {\n"
+        "    border-collapse:collapse;\n"
+        "    mso-table-lspace:0pt;\n"
+        "    mso-table-rspace:0pt;\n"
+        "    mso-border-alt:none;\n"
+        "}\n"
+        "u {text-decoration:underline;}\n"
+        "b, strong {font-weight:bold;}\n"
+        "i, em {font-style:italic;}\n"
+        "-->\n"
+        "</style></head>\n"
+        "<body><div class='Section1'><!--StartFragment-->\n"
+        f"{inner}\n"
+        "<!--EndFragment--></div></body></html>"
     )
 
 
