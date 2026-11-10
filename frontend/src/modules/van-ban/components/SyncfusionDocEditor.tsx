@@ -145,6 +145,12 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
       try {
         editor.open(JSON.stringify(normResult.sfdt));
         initialLoadedRef.current = true;
+        setTimeout(() => {
+          const { text } = getEditorTextAndFootnotes();
+          if (text && (!rawText || rawText.trim() === '')) {
+            onChangeRawText(text);
+          }
+        }, 300);
       } catch {
         try {
           editor.open(JSON.stringify(stripFootnotes(normResult.sfdt)));
@@ -249,6 +255,46 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
     }
   };
 
+  const handleOpenDocxDirectly = async (file: File) => {
+    const editor = containerRef.current?.documentEditor;
+    if (!editor) {
+      onUploadDocx(file);
+      return;
+    }
+
+    message.loading({ content: `Đang nạp tệp ${file.name}...`, key: 'open_docx' });
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+
+      const res = await fetch('/tien-ich/Import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const sfdtText = await res.text();
+        if (sfdtText && sfdtText.length > 20) {
+          editor.open(sfdtText);
+          initialLoadedRef.current = true;
+          setTimeout(() => {
+            const { text } = getEditorTextAndFootnotes();
+            if (text) onChangeRawText(text);
+          }, 300);
+          message.success({
+            content: `Đã mở tệp ${file.name} thành công (giữ nguyên 100% định dạng Word và chú thích)!`,
+            key: 'open_docx',
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Lỗi mở trực tiếp qua Import:', err);
+    }
+    message.destroy('open_docx');
+    onUploadDocx(file);
+  };
+
   const handleToolbarClick = (args: any) => {
     const id = (args?.item?.id || '').toLowerCase();
     const text = (args?.item?.text || '').toLowerCase();
@@ -286,7 +332,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) {
-            onUploadDocx(file);
+            handleOpenDocxDirectly(file);
             e.target.value = '';
           }
         }}

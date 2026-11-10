@@ -73,6 +73,7 @@ ngrok*
 
 # Agent skills & local configurations
 .agents/
+thi-hanh-an/
 
 # OS generated files
 .DS_Store

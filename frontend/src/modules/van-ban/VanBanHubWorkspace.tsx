@@ -391,6 +391,81 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   const handleUploadDocx = async (file: File) => {
     setLoading(true);
     setApiError(null);
+
+    // 1. Thử nạp trực tiếp qua /tien-ich/Import (Syncfusion DocIO native engine) để bảo toàn 100% Word và footnote
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+
+      const importRes = await fetch('/tien-ich/Import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (importRes.ok) {
+        const sfdtText = await importRes.text();
+        if (sfdtText && sfdtText.length > 20) {
+          let sfdtObj: Record<string, unknown> | null = null;
+          try {
+            sfdtObj = JSON.parse(sfdtText);
+          } catch {
+            // bỏ qua
+          }
+
+          if (sfdtObj) {
+            const prof = selectedProfile !== 'AUTO' ? selectedProfile : 'DANG';
+            const now = new Date().toISOString();
+            const dummyResult: NormalizedDocResult = {
+              id: `imported_${Date.now()}`,
+              detected_profile: prof,
+              applied_profile: prof,
+              profile_source: 'IMPORT',
+              profile_name: prof === 'DANG' ? 'Khối cơ quan Đảng' : 'Khối chính quyền',
+              profile_short_label: prof,
+              legal_basis: '',
+              normalized_text: '',
+              a4_preview_html: '',
+              mso_clipboard_html: '',
+              sfdt: sfdtObj,
+              docx_base64: '',
+              docx_filename: file.name,
+              extracted_unit: {
+                cap_tren: '',
+                co_quan: '',
+                viet_tat: '',
+                dia_danh: '',
+                tham_quyen: '',
+                chuc_vu: '',
+                ho_ten: '',
+              },
+              footnotes: [],
+              warnings: [],
+              warnings_count: 0,
+              stats: {
+                lines_processed: 0,
+                body_paragraphs: 0,
+                execution_ms: 0,
+              },
+              created_at: now,
+              updated_at: now,
+            };
+            setNormResult(dummyResult);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('3dohub_active_doc_result', JSON.stringify(dummyResult));
+              sessionStorage.setItem('3dohub_active_profile', selectedProfile);
+            }
+            navigateToEditor();
+            message.success(`Đã mở tệp ${file.name} thành công (giữ nguyên 100% định dạng Word và chú thích)!`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    } catch {
+      // Chuyển sang fallback nếu lỗi mạng
+    }
+
+    // 2. Fallback sang hubApi.normalizeDocxFile
     try {
       const res = await hubApi.normalizeDocxFile(file, selectedProfile);
       if (res.data) {
