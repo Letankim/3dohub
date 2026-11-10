@@ -18,20 +18,8 @@ import {
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-material3-theme/styles/material3.css';
 import { NormalizedDocResult, ProfileItem } from '@/types/api';
-import { stripFootnotes, textToSfdt, extractTextAndFootnotesFromSfdt } from '../utils/sfdt-utils';
-
-// Khóa bản quyền chính thức Syncfusion (Hỗ trợ cấu hình từ ENV hoặc chạy key dự phòng)
-const DEFAULT_SYNCFUSION_LICENSE =
-  process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY ||
-  process.env.SYNCFUSION_LICENSE_KEY ||
-  'Ngo9BigBOggjGy1/VkN+XU9HcVRAXWFPY1J0WGNQb192f1ZFal1RT3RFQFtiSH5ad0NgXH1ddnJQRGtfVA==';
-
-// Đăng ký license NGAY LẬP TỨC ở module scope trước khi bất kỳ component nào mount
-try {
-  registerLicense(DEFAULT_SYNCFUSION_LICENSE);
-} catch {
-  // Bỏ qua nếu đã đăng ký
-}
+import { stripFootnotes, textToSfdt } from '../utils/sfdt-utils';
+import { extractTextAndFootnotesFromSfdt } from '../utils/sfdt-extract';
 
 // Đăng ký module Toolbar một lần an toàn
 try {
@@ -113,22 +101,36 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   const initialLoadedRef = useRef<boolean>(false);
   const [ready, setReady] = useState(false);
   const [hasLicense, setHasLicense] = useState<boolean>(true);
+  const [licenseChecked, setLicenseChecked] = useState<boolean>(false);
 
-  // Nhận license từ endpoint /api/license nếu có cập nhật mới
+  // Đăng ký license TRƯỚC khi dựng editor (Syncfusion kiểm tra key lúc component khởi tạo).
+  // Key chỉ lấy từ biến môi trường SYNCFUSION_LICENSE_KEY (hoặc NEXT_PUBLIC_...) qua /api/license.
   useEffect(() => {
-    fetch('/api/license')
+    let cancelled = false;
+    const finish = (has: boolean) => {
+      if (cancelled) return;
+      setHasLicense(has);
+      setLicenseChecked(true);
+    };
+    const buildKey = process.env.NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY;
+    if (buildKey) {
+      registerLicense(buildKey.trim());
+      finish(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+    fetch('/api/license', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data?.key) {
-          try {
-            registerLicense(data.key);
-          } catch {
-            // đã đăng ký
-          }
-          setHasLicense(true);
-        }
+        const key = typeof data?.key === 'string' ? data.key.trim() : '';
+        if (key) registerLicense(key);
+        finish(!!key);
       })
-      .catch(() => setHasLicense(true));
+      .catch(() => finish(false));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /** Mở tài liệu vào trình soạn thảo:
@@ -174,15 +176,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         const sfdtObj = JSON.parse(sfdtStr);
         const res = extractTextAndFootnotesFromSfdt(sfdtObj);
         if (res.text.length > 10) {
-          const knownFns = normResult?.footnotes || [];
-          const mergedFns = [...res.footnotes];
-          for (const kf of knownFns) {
-            if (!mergedFns.some((f) => String(f.n) === String(kf.n))) {
-              mergedFns.push(kf);
-              res.text += `\n[^${kf.n}]: ${kf.text}`;
-            }
-          }
-          return { text: res.text, footnotes: mergedFns };
+          return { text: res.text, footnotes: res.footnotes };
         }
       }
     } catch {
@@ -332,16 +326,17 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         </Button>
       </div>
 
-      {!hasLicense && (
+      {licenseChecked && !hasLicense && (
         <Alert
-          type="info"
+          type="warning"
           showIcon
           banner
-          message="Chưa cấu hình NEXT_PUBLIC_SYNCFUSION_LICENSE_KEY hoặc SYNCFUSION_LICENSE_KEY — đang chạy chế độ Community dùng thử."
+          message="Chưa cấu hình biến môi trường SYNCFUSION_LICENSE_KEY trên máy chủ — trình soạn thảo đang chạy chế độ dùng thử."
         />
       )}
 
       <div style={{ height: 'calc(100vh - 230px)', minHeight: 620 }}>
+        {licenseChecked && (
         <DocumentEditorContainerComponent
           ref={containerRef}
           id="hub-doc-editor"
@@ -354,6 +349,7 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
           enableSpellCheck={false}
           created={() => setReady(true)}
         />
+        )}
       </div>
     </div>
   );
