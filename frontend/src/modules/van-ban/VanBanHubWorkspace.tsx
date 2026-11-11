@@ -128,6 +128,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
   const [extractingUnit, setExtractingUnit] = useState<boolean>(false);
   const [apiError, setApiError] = useState<HubApiException | null>(null);
   const homeFileInputRef = useRef<HTMLInputElement | null>(null);
+  const normalizeReqRef = useRef<number>(0);
 
   // Sync active mode with browser URL pathname
   useEffect(() => {
@@ -215,11 +216,13 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         message.warning('Vui lòng nhập hoặc dán nội dung văn bản trước khi chuẩn hóa!');
         return;
       }
+      const reqId = ++normalizeReqRef.current;
       setLoading(true);
       setApiError(null);
       try {
         const fnsToPass = footnotesOverride || normResult?.footnotes || undefined;
         const res = await hubApi.normalizeText(targetText, targetProfile, unitInfo, fnsToPass);
+        if (reqId !== normalizeReqRef.current) return;
         if (res.data) {
           setNormResult(res.data);
           setRawText(res.data.normalized_text);
@@ -235,11 +238,13 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
           message.success(res.message);
         }
       } catch (err) {
-        if (err instanceof HubApiException) {
+        if (reqId === normalizeReqRef.current && err instanceof HubApiException) {
           setApiError(err);
         }
       } finally {
-        setLoading(false);
+        if (reqId === normalizeReqRef.current) {
+          setLoading(false);
+        }
       }
     },
     [rawText, selectedProfile, unitInfo, normResult]

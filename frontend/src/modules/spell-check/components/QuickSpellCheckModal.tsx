@@ -8,6 +8,7 @@ import {
   CheckOutlined,
   CopyOutlined,
   SearchOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import { hubApi } from '@/services/api-client';
 import { SpellCheckIssueItem, SpellCheckResultData } from '@/types/api';
@@ -77,7 +78,11 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
       workingText.slice(iss.endIndex);
     const delta = iss.replacement.length - (iss.endIndex - iss.startIndex);
     const remainingIssues = result.issues
-      .filter((i) => i.id !== iss.id)
+      .filter(
+        (i) =>
+          i.id !== iss.id &&
+          (i.endIndex <= iss.startIndex || i.startIndex >= iss.endIndex)
+      )
       .map((i) =>
         i.startIndex >= iss.endIndex
           ? { ...i, startIndex: i.startIndex + delta, endIndex: i.endIndex + delta }
@@ -87,9 +92,27 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
     setWorkingText(nextText);
     setResult({
       issues: remainingIssues,
-      stats: { ...result.stats, total: remainingIssues.length },
+      stats: {
+        ...result.stats,
+        total: remainingIssues.length,
+        spelling: remainingIssues.filter((i) => i.category === 'SPELLING').length,
+        confusable: remainingIssues.filter((i) => i.category === 'CONFUSABLE').length,
+        capitalization: remainingIssues.filter((i) => i.category === 'CAPITALIZATION').length,
+        punctuation: remainingIssues.filter((i) => i.category === 'PUNCTUATION').length,
+        charsCount: nextText.length,
+        wordsCount: nextText.trim() ? nextText.trim().split(/\s+/).length : 0,
+      },
     });
-    message.success(`Đã sửa "${iss.original.trim() || '[khoảng trắng]'}" → "${iss.replacement || '[xóa]'}"`);
+    if (onApplyCorrectedText) {
+      onApplyCorrectedText(nextText);
+      message.success(
+        `Đã sửa và áp dụng "${iss.original.trim() || '[khoảng trắng]'}" → "${iss.replacement || '[xóa]'}"`
+      );
+    } else {
+      message.success(
+        `Đã sửa "${iss.original.trim() || '[khoảng trắng]'}" → "${iss.replacement || '[xóa]'}"`
+      );
+    }
   };
 
   const handleFixAll = async () => {
@@ -161,6 +184,9 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
               Sửa {safeCount} lỗi an toàn & Áp dụng
             </Button>
           )}
+          <Button icon={<CloseOutlined />} onClick={onClose}>
+            Đóng
+          </Button>
         </Space>
       }
     >
@@ -184,7 +210,7 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
                     background: '#F8FAFC',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
                     <Tag
                       color={
                         iss.category === 'SPELLING'
@@ -193,6 +219,7 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
                           ? 'warning'
                           : 'blue'
                       }
+                      style={{ margin: 0 }}
                     >
                       {iss.categoryLabel}
                     </Tag>
@@ -201,7 +228,14 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
                       type="primary"
                       icon={<CheckOutlined />}
                       onClick={() => handleFixOne(iss)}
-                      style={{ background: '#16A34A', borderColor: '#16A34A', fontSize: 12 }}
+                      style={{
+                        background: '#16A34A',
+                        borderColor: '#16A34A',
+                        fontSize: 12,
+                        maxWidth: 230,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
                     >
                       Sửa: {iss.replacement === '' ? 'Xóa khoảng trắng' : iss.replacement}
                     </Button>

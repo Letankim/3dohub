@@ -148,7 +148,11 @@ export const SpellCheckWorkspace: React.FC = () => {
       const delta = issue.replacement.length - (issue.endIndex - issue.startIndex);
 
       const remaining = issues
-        .filter((i) => i.id !== issue.id)
+        .filter(
+          (i) =>
+            i.id !== issue.id &&
+            (i.endIndex <= issue.startIndex || i.startIndex >= issue.endIndex)
+        )
         .map((i) =>
           i.startIndex >= issue.endIndex
             ? { ...i, startIndex: i.startIndex + delta, endIndex: i.endIndex + delta }
