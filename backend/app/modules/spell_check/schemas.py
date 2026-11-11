@@ -15,3 +15,4 @@ class SpellCheckRequest(BaseModel):
                 message="Nội dung văn bản tối đa 200.000 ký tự",
                 rejected_value=len(self.text),
             )
+

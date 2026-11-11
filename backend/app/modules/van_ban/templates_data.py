@@ -469,16 +469,16 @@ def build_raw_text_from_template(
     year_str = str(datetime.now().year)
 
     if grp == "DANG":
-        so_line = f"Số   -{code}/{org_abbr}"
+        so_line = f"Số [...]-{code}/{org_abbr}"
         motto_lines = [TEXT_TIEU_NGU_DANG]
     elif is_cv:
-        so_line = f"Số:   /{org_abbr}-[ĐVST]"
+        so_line = f"Số: [...]/{org_abbr}-[ĐVST]"
         motto_lines = [TEXT_QUOC_HIEU, TEXT_TIEU_NGU]
     else:
-        so_line = f"Số:   /{code}-{org_abbr}"
+        so_line = f"Số: [...]/{code}-{org_abbr}"
         motto_lines = [TEXT_QUOC_HIEU, TEXT_TIEU_NGU]
 
-    date_line = f"{place_name}, ngày    tháng    năm {year_str}"
+    date_line = f"{place_name}, ngày [...] tháng [...] năm {year_str}"
 
     out_lines: list[str] = []
     out_lines.extend(organ_lines)

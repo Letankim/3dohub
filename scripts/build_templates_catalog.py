@@ -75,6 +75,28 @@ NAME_REPLACEMENTS = [
 ]
 
 
+def dots_to_brackets(line: str) -> str:
+    """Convert dot/ellipsis fill-in blanks outside [...] and [^n] into [...] for yellow highlighting."""
+    if re.match(r"^\[\^\d+\]:", line):
+        return line
+    parts = re.split(r"(\[\^\d+\]|\[[^\]]+\])", line)
+    out = []
+    for p in parts:
+        if not p:
+            continue
+        if re.fullmatch(r"\[\^\d+\]|\[[^\]]+\]", p):
+            out.append(p)
+        else:
+            # Replace unicode ellipsis or 2+ dots (including trailing spaced dots) with [...]
+            replaced = re.sub(r"(?:…+|(?:\.\s*){2,}\.?)", "[...]", p)
+            out.append(replaced)
+    res = "".join(out)
+    # Collapse patterns like [...][^5][...] -> [...][^5] and duplicate [...][...]
+    res = re.sub(r"\[\.\.\.\]\s*(\[\^\d+\])\s*\[\.\.\.\]", r"[...]\1", res)
+    res = re.sub(r"(?:\[\.\.\.\]\s*){2,}", "[...] ", res).strip()
+    return res
+
+
 def anonymize_line(line: str) -> str:
     s = line
     for pat, repl in NAME_REPLACEMENTS:
@@ -134,6 +156,8 @@ def build_catalog():
 
             # Strip footnote markers on generic header placeholders like TÊN CƠ QUAN, TỔ CHỨC[^1]
             lines = [re.sub(r"\[\^\d+\]", "", l) if ("CƠ QUAN" in l or "…," in l or "Số:" in l) else l for l in cleaned_lines]
+            # Convert all dot/ellipsis blanks into [...] so they highlight yellow everywhere
+            lines = [dots_to_brackets(l) for l in lines]
 
         clean_text = "\n".join(lines)
 

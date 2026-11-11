@@ -53,6 +53,8 @@ def normalize_so_ky_hieu_dang(s_raw: str) -> str:
     else:
         return f"Số {rest}"
 
+    if "[" in num_part and "]" in num_part:
+        return f"Số {num_part}-{code_part.upper()}/{org_part.upper()}"
     clean_num = num_part.replace(".", "").replace("…", "").strip()
     if not clean_num or not clean_num.isdigit():
         return f"Số   -{code_part.upper()}/{org_part.upper()}"
@@ -77,7 +79,7 @@ def normalize_so_ky_hieu_nha_nuoc(s_raw: str, keep_prefix: bool = False) -> str:
     if not rest:
         return s
 
-    m = re.match(r"^([0-9.…]*)(.*)$", rest)
+    m = re.match(r"^((?:\[\.\.\.\]|[0-9.…])*)(.*)$", rest)
     if not m:
         return s
     num_part, tail = m.group(1), m.group(2)
@@ -95,8 +97,10 @@ def normalize_so_ky_hieu_nha_nuoc(s_raw: str, keep_prefix: bool = False) -> str:
             tail_body = f"{tail_body[:sl]}-{tail_body[sl + 1 :]}"
 
     tail_body = tail_body.upper()
-    clean_num = num_part.replace(".", "").replace("…", "").strip()
     prefix = ("Số: " if had_colon else "Số ") if keep_prefix else "Số: "
+    if "[" in num_part and "]" in num_part:
+        return f"{prefix}{num_part}/{tail_body}"
+    clean_num = num_part.replace(".", "").replace("…", "").strip()
     if not clean_num or not clean_num.isdigit():
         return f"{prefix}  /{tail_body}"
     val = int(clean_num)
@@ -137,24 +141,30 @@ def normalize_ngay_thang(s_raw: str) -> str:
     month_part = s[p_thang + 5 : p_nam].strip()
     year_part = s[p_nam + 3 :].strip().rstrip(".")
 
-    clean_day = day_part.replace(".", "").replace("…", "").strip()
-    if not clean_day or not clean_day.isdigit():
-        day_text = "    "
+    if "[" in day_part and "]" in day_part:
+        day_text = f" {day_part} "
     else:
-        d_val = int(clean_day)
-        day_str = f"0{d_val}" if 0 < d_val < 10 else str(d_val)
-        day_text = f" {day_str} "
-
-    clean_month = month_part.replace(".", "").replace("…", "").strip()
-    if not clean_month or not clean_month.isdigit():
-        month_text = "    "
-    else:
-        m_val = int(clean_month)
-        if m_val in (1, 2):
-            month_str = f"0{m_val}"
+        clean_day = day_part.replace(".", "").replace("…", "").strip()
+        if not clean_day or not clean_day.isdigit():
+            day_text = "    "
         else:
-            month_str = str(m_val)
-        month_text = f" {month_str} "
+            d_val = int(clean_day)
+            day_str = f"0{d_val}" if 0 < d_val < 10 else str(d_val)
+            day_text = f" {day_str} "
+
+    if "[" in month_part and "]" in month_part:
+        month_text = f" {month_part} "
+    else:
+        clean_month = month_part.replace(".", "").replace("…", "").strip()
+        if not clean_month or not clean_month.isdigit():
+            month_text = "    "
+        else:
+            m_val = int(clean_month)
+            if m_val in (1, 2):
+                month_str = f"0{m_val}"
+            else:
+                month_str = str(m_val)
+            month_text = f" {month_str} "
 
     prefix = f"{loc_part}, " if loc_part else ""
     return f"{prefix}ngày{day_text}tháng{month_text}năm {year_part}"

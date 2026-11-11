@@ -50,3 +50,4 @@ async def list_regulations(
         meta={"total": len(items), "category": category or "ALL"},
         request=request,
     )
+

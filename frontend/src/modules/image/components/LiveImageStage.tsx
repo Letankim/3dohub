@@ -403,3 +403,4 @@ export const LiveImageStage: React.FC<LiveImageStageProps> = ({
     </div>
   );
 };
+

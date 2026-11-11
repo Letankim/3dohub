@@ -99,3 +99,4 @@ if __name__ == "__main__":
     test_doc_lookup_regulations_endpoint()
     print("[PASS] test_doc_lookup_regulations_endpoint")
     print("\nALL SPELL CHECK & DOC LOOKUP BACKEND TESTS PASSED!")
+

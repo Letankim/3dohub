@@ -266,3 +266,4 @@ def apply_safe_auto_fixes(text: str, issues: list[dict[str, Any]]) -> tuple[str,
         if 0 <= s <= e <= len(updated):
             updated = updated[:s] + iss["replacement"] + updated[e:]
     return updated, len(safe)
+

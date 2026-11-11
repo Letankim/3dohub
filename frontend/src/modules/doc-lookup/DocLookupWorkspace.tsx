@@ -2,8 +2,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Row,
-  Col,
   Card,
   Input,
   Tag,
@@ -58,7 +56,6 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
-  const [selectedId, setSelectedId] = useState<string>('');
 
   const fetchRegulations = useCallback(async () => {
     setLoading(true);
@@ -66,21 +63,17 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       const res = await hubApi.getLegalRegulations();
       if (res.data) {
         setRegulations(res.data);
-        if (res.data.length > 0 && !selectedId) {
-          setSelectedId(res.data[0].id);
-        }
       }
     } catch {
       message.error('Không thể tải dữ liệu văn bản từ máy chủ.');
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, []);
 
   useEffect(() => {
     void fetchRegulations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchRegulations]);
 
   const filteredList = useMemo(() => {
     let list = regulations;
@@ -110,14 +103,6 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
     });
   }, [regulations, searchText, activeCategory]);
 
-  const activeItem = useMemo(() => {
-    return (
-      filteredList.find((r) => r.id === selectedId) ||
-      filteredList[0] ||
-      null
-    );
-  }, [filteredList, selectedId]);
-
   const handleCopyCitation = (item: LegalRegulationApiItem) => {
     const text = `${item.title} (Số: ${item.documentNumber}, Cơ quan ban hành: ${item.issuingOrgan}, Hiệu lực: ${item.effectiveDate})`;
     navigator.clipboard.writeText(text);
@@ -129,20 +114,20 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       title: 'Thành phần thể thức',
       dataIndex: 'component',
       key: 'component',
-      width: 175,
+      width: 190,
       render: (val: string) => <Text strong style={{ color: '#0F172A' }}>{val}</Text>,
     },
     {
       title: 'Kiểu chữ',
       dataIndex: 'fontStyle',
       key: 'fontStyle',
-      width: 175,
+      width: 210,
     },
     {
       title: 'Cỡ chữ',
       dataIndex: 'fontSize',
       key: 'fontSize',
-      width: 105,
+      width: 115,
       render: (val: string) => (
         <Tag color="blue" style={{ margin: 0, fontWeight: 600 }}>
           {val}
@@ -153,14 +138,14 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       title: 'Vị trí & Căn lề',
       dataIndex: 'alignment',
       key: 'alignment',
-      width: 165,
+      width: 200,
     },
     {
       title: 'Quy chuẩn & Ví dụ',
       dataIndex: 'note',
       key: 'note',
       render: (val: string) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: 12.5 }}>
           {val}
         </Text>
       ),
@@ -169,7 +154,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-      {/* Clean Enterprise Search & Header Card */}
+      {/* Enterprise Search, Category Tabs & Actions */}
       <Card
         size="small"
         style={{
@@ -252,6 +237,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
         />
       </Card>
 
+      {/* Full-Width Regulations Results */}
       <Spin spinning={loading} tip="Đang tải dữ liệu văn bản quy phạm từ máy chủ...">
         {filteredList.length === 0 && !loading ? (
           <Card style={{ borderRadius: 6, border: '1px solid #E2E8F0' }}>
@@ -262,155 +248,99 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
             />
           </Card>
         ) : (
-          <Row gutter={[16, 16]}>
-            {/* Left Sidebar List of Matching Regulations */}
-            <Col xs={24} lg={8}>
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            {filteredList.map((item) => (
               <Card
-                size="small"
-                title={
-                  <Space>
-                    <FileTextOutlined style={{ color: '#1D4ED8' }} />
-                    <span style={{ fontWeight: 600 }}>Danh mục quy chuẩn ({filteredList.length})</span>
-                  </Space>
-                }
-                style={{ borderRadius: 6, border: '1px solid #E2E8F0', height: '100%' }}
-                styles={{ body: { padding: 10, maxHeight: isMobile ? 320 : 620, overflowY: 'auto' } }}
+                key={item.id}
+                style={{ borderRadius: 6, border: '1px solid #E2E8F0', background: '#FFFFFF' }}
+                styles={{ body: { padding: isMobile ? 14 : 22 } }}
               >
-                <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                  {filteredList.map((reg) => {
-                    const isSelected = activeItem?.id === reg.id;
-                    return (
-                      <div
-                        key={reg.id}
-                        onClick={() => setSelectedId(reg.id)}
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          border: isSelected ? '1px solid #93C5FD' : '1px solid #E2E8F0',
-                          borderLeft: isSelected ? '4px solid #1D4ED8' : '1px solid #E2E8F0',
-                          backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <Tag color={reg.categoryColor} style={{ margin: 0, fontWeight: 600, fontSize: 11 }}>
-                            {reg.categoryLabel}
-                          </Tag>
-                          <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>
-                            {reg.documentNumber}
-                          </Text>
-                        </div>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A', lineHeight: 1.4, marginBottom: 4 }}>
-                          {reg.shortTitle}
-                        </div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          <BankOutlined style={{ marginRight: 4 }} />
-                          {reg.issuingOrgan} · {reg.effectiveDate}
-                        </Text>
-                      </div>
-                    );
-                  })}
-                </Space>
-              </Card>
-            </Col>
-
-            {/* Right Detail Panel */}
-            <Col xs={24} lg={16}>
-              {activeItem && (
-                <Card
-                  style={{ borderRadius: 6, border: '1px solid #E2E8F0' }}
-                  styles={{ body: { padding: isMobile ? 14 : 22 } }}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                  }}
                 >
+                  <div style={{ flex: 1, minWidth: 240 }}>
+                    <Space wrap style={{ marginBottom: 8 }}>
+                      <Tag color={item.categoryColor} style={{ fontWeight: 600, margin: 0 }}>
+                        {item.categoryLabel}
+                      </Tag>
+                      <Tag color="default" style={{ fontWeight: 600, margin: 0 }}>
+                        Số: {item.documentNumber}
+                      </Tag>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        <FieldTimeOutlined style={{ marginRight: 4 }} />
+                        Hiệu lực: {item.effectiveDate}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        <BankOutlined style={{ marginRight: 4 }} />
+                        {item.issuingOrgan}
+                      </Text>
+                    </Space>
+
+                    <Title level={4} style={{ margin: '0 0 6px 0', color: '#0F172A', lineHeight: 1.35 }}>
+                      {item.title}
+                    </Title>
+                    <Paragraph style={{ margin: 0, color: '#475569', fontSize: 14 }}>
+                      {item.summary}
+                    </Paragraph>
+                  </div>
+
+                  <Button
+                    icon={<CopyOutlined />}
+                    onClick={() => handleCopyCitation(item)}
+                    style={{ borderRadius: 4 }}
+                  >
+                    Sao chép căn cứ
+                  </Button>
+                </div>
+
+                <Divider style={{ margin: '16px 0' }} />
+
+                <div style={{ marginBottom: 18 }}>
+                  <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 8 }}>
+                    <CheckCircleOutlined style={{ color: '#16A34A', marginRight: 6 }} />
+                    Quy định trọng tâm cần tuân thủ
+                  </Text>
                   <div
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      flexWrap: 'wrap',
-                      gap: 12,
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: 6,
+                      padding: '12px 16px',
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 240 }}>
-                      <Space wrap style={{ marginBottom: 8 }}>
-                        <Tag color={activeItem.categoryColor} style={{ fontWeight: 600, margin: 0 }}>
-                          {activeItem.categoryLabel}
-                        </Tag>
-                        <Tag color="default" style={{ fontWeight: 600, margin: 0 }}>
-                          Số: {activeItem.documentNumber}
-                        </Tag>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          <FieldTimeOutlined style={{ marginRight: 4 }} />
-                          Hiệu lực: {activeItem.effectiveDate}
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          <BankOutlined style={{ marginRight: 4 }} />
-                          {activeItem.issuingOrgan}
-                        </Text>
-                      </Space>
-
-                      <Title level={4} style={{ margin: '0 0 8px 0', color: '#0F172A', lineHeight: 1.35 }}>
-                        {activeItem.title}
-                      </Title>
-                      <Paragraph style={{ margin: 0, color: '#475569', fontSize: 14 }}>
-                        {activeItem.summary}
-                      </Paragraph>
-                    </div>
-
-                    <Button
-                      icon={<CopyOutlined />}
-                      onClick={() => handleCopyCitation(activeItem)}
-                      style={{ borderRadius: 4 }}
-                    >
-                      Sao chép căn cứ
-                    </Button>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {item.keyProvisions.map((prov, idx) => (
+                        <li key={idx} style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>
+                          {prov}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                </div>
 
-                  <Divider style={{ margin: '16px 0' }} />
-
-                  {/* Key Provisions */}
-                  <div style={{ marginBottom: 18 }}>
-                    <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 8 }}>
-                      <CheckCircleOutlined style={{ color: '#16A34A', marginRight: 6 }} />
-                      Quy định trọng tâm cần tuân thủ
-                    </Text>
-                    <div
-                      style={{
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 6,
-                        padding: '12px 16px',
-                      }}
-                    >
-                      <ul style={{ margin: 0, paddingLeft: 18 }}>
-                        {activeItem.keyProvisions.map((prov, idx) => (
-                          <li key={idx} style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>
-                            {prov}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Format Table */}
-                  <div>
-                    <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 10 }}>
-                      <FileTextOutlined style={{ color: '#1D4ED8', marginRight: 6 }} />
-                      Bảng thông số thể thức từng thành phần
-                    </Text>
-                    <Table
-                      columns={columns}
-                      dataSource={activeItem.formatRules.map((f, idx) => ({ ...f, key: idx }))}
-                      pagination={false}
-                      size="small"
-                      bordered
-                      scroll={{ x: 680 }}
-                    />
-                  </div>
-                </Card>
-              )}
-            </Col>
-          </Row>
+                <div>
+                  <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 10 }}>
+                    <FileTextOutlined style={{ color: '#1D4ED8', marginRight: 6 }} />
+                    Bảng thông số thể thức từng thành phần
+                  </Text>
+                  <Table
+                    columns={columns}
+                    dataSource={item.formatRules.map((f, idx) => ({ ...f, key: idx }))}
+                    pagination={false}
+                    size="small"
+                    bordered
+                    scroll={{ x: 680 }}
+                  />
+                </div>
+              </Card>
+            ))}
+          </Space>
         )}
       </Spin>
     </div>

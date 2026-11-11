@@ -33,8 +33,9 @@ def validate_document_logic(norm_doc: dict[str, Any]) -> list[dict[str, Any]]:
     if norm_doc.get("mismatch_warning"):
         add_warn("PROFILE_MISMATCH", "Lệch khối", norm_doc["mismatch_warning"], "ERROR")
 
-    # 2. Ellipsis '...' or '…' check
-    if "..." in full_text or "…" in full_text:
+    # 2. Ellipsis '...' or '…' check (ignore dots already inside [...] yellow placeholders)
+    text_no_brackets = re.sub(r"\[[^\]]+\]", "", full_text)
+    if "..." in text_no_brackets or "…" in text_no_brackets:
         add_warn(
             "ELLIPSIS_FOUND",
             "Dữ liệu trống",

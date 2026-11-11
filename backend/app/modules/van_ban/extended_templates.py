@@ -86,16 +86,17 @@ def build_raw_text_from_extended(
     if cap_tren:
         res = re.sub(r"\[?ĐẢNG BỘ CẤP TRÊN TRỰC TIẾP\]?", cap_tren, res)
         res = re.sub(r"\[?TÊN CƠ QUAN CẤP TRÊN(?:\s*\(NẾU CÓ\))?\]?", cap_tren, res)
-        res = re.sub(r"TỈNH ỦY\s*\.\.\.", cap_tren, res)
+        res = re.sub(r"TỈNH ỦY\s*(?:\[\.\.\.\]|\.{2,}|…+)", cap_tren, res)
     if co_quan:
         res = re.sub(r"\[?ĐẢNG ỦY / CHI BỘ BAN HÀNH\]?", co_quan, res)
         res = re.sub(r"\[?TÊN CƠ QUAN(?:,\s*TỔ CHỨC)? BAN HÀNH\]?", co_quan, res)
         res = re.sub(r"TÊN CƠ QUAN,\s*TỔ CHỨC", co_quan, res)
-        res = re.sub(r"ỦY BAN NHÂN DÂN\s*TỈNH\s*\.\.\.", co_quan, res)
+        res = re.sub(r"ỦY BAN NHÂN DÂN\s*TỈNH\s*(?:\[\.\.\.\]|\.{2,}|…+)", co_quan, res)
     if dia_danh:
         res = re.sub(r"\[?Địa danh\]?", dia_danh, res)
-        res = re.sub(r"…+\[\^?\d*\]?…*,\s*ngày", f"{dia_danh}, ngày", res)
-        res = re.sub(r"\.{3,},\s*ngày", f"{dia_danh}, ngày", res)
+        res = re.sub(r"(?:…+|\.{2,}|\[\.\.\.\])(?:\[\^\d+\])?(?:\[\.\.\.\])?,\s*ngày", f"{dia_danh}, ngày", res)
+    if viet_tat:
+        res = re.sub(r"-\[\.\.\.\](?=\s|$)", f"-{viet_tat}", res)
     if tham_quyen:
         res = re.sub(r"\[?TM\.\s*/\s*KT\.\s*/\s*TL\.\s*\.\.\.\]?", tham_quyen, res)
         res = re.sub(r"T/M BAN THƯỜNG VỤ", tham_quyen, res)

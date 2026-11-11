@@ -147,3 +147,4 @@ REGULATIONS_DATA: list[dict[str, Any]] = [
         "keywords": ["đoàn thanh niên", "29-hd/twdtn-vp", "đoàn tncs hồ chí minh", "tháng thanh niên", "chi đoàn"],
     },
 ]
+

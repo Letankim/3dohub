@@ -36,3 +36,4 @@ async def auto_fix_spelling_endpoint(payload: SpellCheckRequest, request: Reques
         message=f"Đã tự động chuẩn hóa {fixed_count} lỗi an toàn",
         request=request,
     )
+
