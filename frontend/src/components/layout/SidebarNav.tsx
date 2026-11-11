@@ -13,6 +13,7 @@ import {
   QrcodeOutlined,
   SearchOutlined,
   SafetyCertificateOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { HUB_MODULES_REGISTRY, HubNavModule } from '@/config/modules-registry';
 
@@ -41,6 +42,10 @@ const getModuleIcon = (key: string, fontSize = 17) => {
       return <FilePdfOutlined style={{ fontSize, color: '#DC2626' }} />;
     case 'image-module':
       return <FileImageOutlined style={{ fontSize, color: '#0284C7' }} />;
+    case 'doc-lookup-module':
+      return <BookOutlined style={{ fontSize, color: '#7C3AED' }} />;
+    case 'spell-check-module':
+      return <SafetyCertificateOutlined style={{ fontSize, color: '#059669' }} />;
     case 'van-ban-module':
     default:
       return <FileWordOutlined style={{ fontSize }} />;

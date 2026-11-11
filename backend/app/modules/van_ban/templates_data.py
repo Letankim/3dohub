@@ -377,7 +377,8 @@ def find_template_by_tag(tag: str) -> Optional[dict[str, Any]]:
     for item in TEMPLATES_CATALOG:
         if item["tag"].upper() == norm_tag:
             return item
-    return None
+    from app.modules.van_ban.extended_templates import find_extended_template
+    return find_extended_template(tag)
 
 
 def build_raw_text_from_template(
@@ -387,6 +388,9 @@ def build_raw_text_from_template(
     tpl = find_template_by_tag(tag)
     if not tpl:
         return ""
+    if tpl.get("is_extended"):
+        from app.modules.van_ban.extended_templates import build_raw_text_from_extended
+        return build_raw_text_from_extended(tpl, unit_info)
     u = unit_info or {}
     grp = tpl["group"]
     dsl = tpl["dsl"]

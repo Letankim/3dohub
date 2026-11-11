@@ -24,6 +24,8 @@ import { ShortLinkWorkspace } from '@/modules/short-link/ShortLinkWorkspace';
 import { QrCodeWorkspace } from '@/modules/qr-code/QrCodeWorkspace';
 import { PdfHubWorkspace } from '@/modules/pdf/PdfHubWorkspace';
 import { ImageHubWorkspace } from '@/modules/image/ImageHubWorkspace';
+import { DocLookupWorkspace } from '@/modules/doc-lookup/DocLookupWorkspace';
+import { SpellCheckWorkspace } from '@/modules/spell-check/components/SpellCheckWorkspace';
 import { HUB_MODULES_REGISTRY, HubNavModule } from '@/config/modules-registry';
 import { hubApi, HubApiException } from '@/services/api-client';
 import {
@@ -74,7 +76,9 @@ export interface VanBanHubWorkspaceProps {
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
     | 'PDF_WORKSPACE'
-    | 'IMAGE_WORKSPACE';
+    | 'IMAGE_WORKSPACE'
+    | 'DOC_LOOKUP_WORKSPACE'
+    | 'SPELL_CHECK_WORKSPACE';
 }
 
 export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
@@ -92,6 +96,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     | 'QR_CODE_WORKSPACE'
     | 'PDF_WORKSPACE'
     | 'IMAGE_WORKSPACE'
+    | 'DOC_LOOKUP_WORKSPACE'
+    | 'SPELL_CHECK_WORKSPACE'
   >(initialMode);
   const [activeNavKey, setActiveNavKey] = useState<string>(
     initialMode === 'HERO_HOME'
@@ -106,6 +112,10 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'pdf-module'
       : initialMode === 'IMAGE_WORKSPACE'
       ? 'image-module'
+      : initialMode === 'DOC_LOOKUP_WORKSPACE'
+      ? 'doc-lookup-module'
+      : initialMode === 'SPELL_CHECK_WORKSPACE'
+      ? 'spell-check-module'
       : 'van-ban-module'
   );
   const [profiles, setProfiles] = useState<ProfileItem[]>([]);
@@ -145,6 +155,12 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     } else if (pathname?.startsWith('/tien-ich/xu-ly-anh')) {
       setWorkspaceTab('IMAGE_WORKSPACE');
       setActiveNavKey('image-module');
+    } else if (pathname?.startsWith('/tien-ich/tra-cuu-van-ban')) {
+      setWorkspaceTab('DOC_LOOKUP_WORKSPACE');
+      setActiveNavKey('doc-lookup-module');
+    } else if (pathname?.startsWith('/tien-ich/check-chinh-ta')) {
+      setWorkspaceTab('SPELL_CHECK_WORKSPACE');
+      setActiveNavKey('spell-check-module');
     }
   }, [pathname]);
 
@@ -283,11 +299,15 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         initialMode === 'EXCEL_WORKSPACE' ||
         initialMode === 'PDF_WORKSPACE' ||
         initialMode === 'IMAGE_WORKSPACE' ||
+        initialMode === 'DOC_LOOKUP_WORKSPACE' ||
+        initialMode === 'SPELL_CHECK_WORKSPACE' ||
         pathname?.startsWith('/tien-ich/rut-gon-link') ||
         pathname?.startsWith('/tien-ich/tao-ma-qr') ||
         pathname?.startsWith('/tien-ich/chuan-hoa-excel') ||
         pathname?.startsWith('/tien-ich/xu-ly-pdf') ||
-        pathname?.startsWith('/tien-ich/xu-ly-anh');
+        pathname?.startsWith('/tien-ich/xu-ly-anh') ||
+        pathname?.startsWith('/tien-ich/tra-cuu-van-ban') ||
+        pathname?.startsWith('/tien-ich/check-chinh-ta');
 
       if (isStandaloneTool) {
         return;
@@ -403,6 +423,22 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     setActiveNavKey('image-module');
     if (pathname !== '/tien-ich/xu-ly-anh') {
       router.push('/tien-ich/xu-ly-anh');
+    }
+  };
+
+  const navigateToDocLookup = () => {
+    setWorkspaceTab('DOC_LOOKUP_WORKSPACE');
+    setActiveNavKey('doc-lookup-module');
+    if (pathname !== '/tien-ich/tra-cuu-van-ban') {
+      router.push('/tien-ich/tra-cuu-van-ban');
+    }
+  };
+
+  const navigateToSpellCheck = () => {
+    setWorkspaceTab('SPELL_CHECK_WORKSPACE');
+    setActiveNavKey('spell-check-module');
+    if (pathname !== '/tien-ich/check-chinh-ta') {
+      router.push('/tien-ich/check-chinh-ta');
     }
   };
 
@@ -565,6 +601,10 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'Tiện ích PDF'
       : workspaceTab === 'IMAGE_WORKSPACE'
       ? 'Tiện ích Ảnh'
+      : workspaceTab === 'DOC_LOOKUP_WORKSPACE'
+      ? 'Tra cứu thể thức'
+      : workspaceTab === 'SPELL_CHECK_WORKSPACE'
+      ? 'Soát lỗi chính tả'
       : 'Chuẩn hóa văn bản';
 
   return (
@@ -597,6 +637,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
           onOpenQrCodeModule={navigateToQrCode}
           onOpenPdfModule={navigateToPdf}
           onOpenImageModule={navigateToImage}
+          onOpenDocLookupModule={navigateToDocLookup}
+          onOpenSpellCheckModule={navigateToSpellCheck}
         />
       ) : workspaceTab === 'EXCEL_WORKSPACE' ? (
         <ExcelNormWorkspace />
@@ -608,6 +650,13 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         <PdfHubWorkspace />
       ) : workspaceTab === 'IMAGE_WORKSPACE' ? (
         <ImageHubWorkspace />
+      ) : workspaceTab === 'DOC_LOOKUP_WORKSPACE' ? (
+        <DocLookupWorkspace
+          onOpenTemplatesModal={() => setTemplateModalOpen(true)}
+          onOpenEditor={navigateToEditor}
+        />
+      ) : workspaceTab === 'SPELL_CHECK_WORKSPACE' ? (
+        <SpellCheckWorkspace />
       ) : (
         <>
         <EditorErrorBoundary

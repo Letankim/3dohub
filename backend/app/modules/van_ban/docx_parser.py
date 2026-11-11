@@ -62,25 +62,6 @@ def _extract_p_text_with_footnotes(
     for child in p_el:
         tag = child.tag.split("}")[-1]
         if tag == "r":
-            # Check for page break in run: <w:br w:type="page"/>
-            for br in child.findall(f"{{{_W_NS}}}br"):
-                b_type = br.attrib.get(f"{{{_W_NS}}}type") or br.attrib.get("type")
-                if b_type == "page":
-                    parts.append("\n[PAGE_BREAK]\n")
-
-            fn_ref = child.find(f"{{{_W_NS}}}footnoteReference")
-            if fn_ref is not None:
-                fn_id = fn_ref.attrib.get(f"{{{_W_NS}}}id") or fn_ref.attrib.get("id")
-                if fn_id and fn_id in footnotes_map:
-                    if fn_id not in id_to_seq:
-                        seq_num = len(id_to_seq) + 1
-                        id_to_seq[fn_id] = seq_num
-                        ordered_footnotes.append((str(seq_num), footnotes_map[fn_id]))
-                    parts.append(f"[^{id_to_seq[fn_id]}]")
-                elif fn_id:
-                    parts.append(f"[^{fn_id}]")
-                continue
-
             rPr = child.find(f"{{{_W_NS}}}rPr")
             is_sup = False
             if rPr is not None:
@@ -97,11 +78,34 @@ def _extract_p_text_with_footnotes(
                 ):
                     is_sup = True
 
-            run_text = "".join(t.text for t in child.findall(f"{{{_W_NS}}}t") if t.text)
-            if is_sup and re.fullmatch(r"\d+", run_text.strip()):
-                parts.append(f"[^{run_text.strip()}]")
-            else:
-                parts.append(run_text)
+            for r_child in child:
+                r_tag = r_child.tag.split("}")[-1]
+                if r_tag == "br":
+                    b_type = r_child.attrib.get(f"{{{_W_NS}}}type") or r_child.attrib.get("type")
+                    if b_type == "page":
+                        parts.append("\n[PAGE_BREAK]\n")
+                    else:
+                        parts.append("\n")
+                elif r_tag == "cr":
+                    parts.append("\n")
+                elif r_tag == "tab":
+                    parts.append("\t")
+                elif r_tag == "footnoteReference":
+                    fn_id = r_child.attrib.get(f"{{{_W_NS}}}id") or r_child.attrib.get("id")
+                    if fn_id and fn_id in footnotes_map:
+                        if fn_id not in id_to_seq:
+                            seq_num = len(id_to_seq) + 1
+                            id_to_seq[fn_id] = seq_num
+                            ordered_footnotes.append((str(seq_num), footnotes_map[fn_id]))
+                        parts.append(f"[^{id_to_seq[fn_id]}]")
+                    elif fn_id:
+                        parts.append(f"[^{fn_id}]")
+                elif r_tag == "t" and r_child.text:
+                    t_val = r_child.text
+                    if is_sup and re.fullmatch(r"\d+", t_val.strip()):
+                        parts.append(f"[^{t_val.strip()}]")
+                    else:
+                        parts.append(t_val)
         elif tag == "footnoteReference":
             fn_id = child.attrib.get(f"{{{_W_NS}}}id") or child.attrib.get("id")
             if fn_id and fn_id in footnotes_map:
@@ -160,24 +164,62 @@ def extract_lines_from_docx_bytes(file_bytes: bytes) -> list[str]:
             _add_p_line(full_p)
         elif tag == "tbl":
             rows_els = list(child.iter(qn("w:tr")))
-            # If table has >= 2 rows, extract as pipe-delimited body data table rows
-            if len(rows_els) >= 2:
-                for tr_el in rows_els:
-                    row_cells: list[str] = []
-                    for tc_el in tr_el.findall(qn("w:tc")):
-                        cell_paras = []
-                        for p_el in tc_el.iter(qn("w:p")):
-                            t_str = _extract_p_text_with_footnotes(p_el, footnotes_map, id_to_seq, ordered_footnotes)
-                            if t_str:
-                                cell_paras.append(t_str)
-                        row_cells.append(" ".join(cell_paras))
+            # Extract per-row, per-cell paragraph lists
+            grid_texts: list[list[list[str]]] = []
+            max_cols = 0
+            for tr_el in rows_els:
+                row_cols: list[list[str]] = []
+                for tc_el in tr_el.findall(qn("w:tc")):
+                    cell_paras = []
+                    for p_el in tc_el.iter(qn("w:p")):
+                        t_str = _extract_p_text_with_footnotes(p_el, footnotes_map, id_to_seq, ordered_footnotes)
+                        if t_str:
+                            cell_paras.append(t_str)
+                    row_cols.append(cell_paras)
+                max_cols = max(max_cols, len(row_cols))
+                grid_texts.append(row_cols)
+
+            flat_table_str = " ".join(
+                " ".join(p_list) for row in grid_texts for p_list in row
+            ).lower()
+
+            is_layout_tbl = False
+            if len(rows_els) == 1:
+                is_layout_tbl = True
+            elif len(rows_els) <= 3 and max_cols == 2:
+                layout_markers = (
+                    "cộng hòa xã hội",
+                    "đảng cộng sản",
+                    "đoàn tncs",
+                    "độc lập - tự do",
+                    "nơi nhận",
+                    "t/m ",
+                    "tm.",
+                    "kt.",
+                    "tl.",
+                    "chủ tọa",
+                    "chủ trì",
+                    "thư ký",
+                    "kính gửi",
+                    "trưởng bộ phận",
+                    "người làm đơn",
+                )
+                if any(mk in flat_table_str for mk in layout_markers):
+                    is_layout_tbl = True
+
+            if is_layout_tbl:
+                # Unpack column-by-column so Header (Organ+Number then Motto+Date)
+                # and Footer (Recipients then Signer) are cleanly structured
+                for col_idx in range(max_cols):
+                    for row in grid_texts:
+                        if col_idx < len(row):
+                            for p_line in row[col_idx]:
+                                _add_p_line(p_line)
+            else:
+                for row in grid_texts:
+                    row_cells = [" ".join(p_list) for p_list in row]
                     if any(row_cells):
                         lines.append("| " + " | ".join(row_cells) + " |")
-            else:
-                for cell in child.iter(qn("w:tc")):
-                    for p_el in cell.iter(qn("w:p")):
-                        full_p = _extract_p_text_with_footnotes(p_el, footnotes_map, id_to_seq, ordered_footnotes)
-                        _add_p_line(full_p)
 
     # Append referenced footnotes as "[^n]: text" lines at the end of the document
     for seq_str, fn_text in ordered_footnotes:

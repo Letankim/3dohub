@@ -314,3 +314,4 @@ export const ResultTable: React.FC<ResultTableProps> = ({ results, originalFiles
     </>
   );
 };
+

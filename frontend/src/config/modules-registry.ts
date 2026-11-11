@@ -18,7 +18,9 @@ export interface HubNavModule {
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
     | 'PDF_WORKSPACE'
-    | 'IMAGE_WORKSPACE';
+    | 'IMAGE_WORKSPACE'
+    | 'DOC_LOOKUP_WORKSPACE'
+    | 'SPELL_CHECK_WORKSPACE';
 }
 
 export const HUB_MODULES_REGISTRY: HubNavModule[] = [
@@ -50,6 +52,26 @@ export const HUB_MODULES_REGISTRY: HubNavModule[] = [
       'Chuẩn hóa bảng tính & trang in Excel A4 dọc/ngang, chống lỗi ###, chống mất chữ ở cả ô gộp dọc/ngang & hoàn tác 1 chạm',
     category: 'MAIN_HUB',
     targetTab: 'EXCEL_WORKSPACE',
+  },
+  {
+    key: 'doc-lookup-module',
+    code: 'TRA_CUU_VB',
+    label: 'Tra cứu thể thức',
+    path: '/tien-ich/tra-cuu-van-ban',
+    shortDesc:
+      'Tra cứu quy chuẩn thể thức NĐ 30/2020, HD 05-HD/VPTW, NĐ 152/2025, TT 26/2019, TT 68/2023 & liên kết biểu mẫu chuẩn',
+    category: 'MAIN_HUB',
+    targetTab: 'DOC_LOOKUP_WORKSPACE',
+  },
+  {
+    key: 'spell-check-module',
+    code: 'CHECK_CHINH_TA',
+    label: 'Soát lỗi chính tả',
+    path: '/tien-ich/check-chinh-ta',
+    shortDesc:
+      'Soát lỗi chính tả gõ phím Telex/VNI, 404 cụm từ dễ nhầm lẫn, quy tắc viết hoa chức vụ & dấu câu hành chính',
+    category: 'MAIN_HUB',
+    targetTab: 'SPELL_CHECK_WORKSPACE',
   },
   {
     key: 'short-link-module',

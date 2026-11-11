@@ -309,3 +309,4 @@ export const ImageResizeTab: React.FC = () => {
     </div>
   );
 };
+

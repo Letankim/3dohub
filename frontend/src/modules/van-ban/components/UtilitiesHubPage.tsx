@@ -13,6 +13,8 @@ import {
   ArrowRightOutlined,
   ThunderboltFilled,
   CheckCircleOutlined,
+  BookOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -24,6 +26,8 @@ export interface UtilitiesHubPageProps {
   onOpenQrCodeModule?: () => void;
   onOpenPdfModule?: () => void;
   onOpenImageModule?: () => void;
+  onOpenDocLookupModule?: () => void;
+  onOpenSpellCheckModule?: () => void;
 }
 
 interface UtilityCardItem {
@@ -50,6 +54,8 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
   onOpenQrCodeModule,
   onOpenPdfModule,
   onOpenImageModule,
+  onOpenDocLookupModule,
+  onOpenSpellCheckModule,
 }) => {
   const [search, setSearch] = useState('');
 
@@ -207,6 +213,60 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
           onOpenImageModule();
         } else if (typeof window !== 'undefined') {
           window.location.href = '/tien-ich/xu-ly-anh';
+        }
+      },
+    },
+    {
+      id: 'util-tra-cuu-van-ban',
+      code: 'TRA_CUU_VB',
+      path: '/tien-ich/tra-cuu-van-ban',
+      title: 'Tra cứu thể thức & văn bản',
+      category: 'Tiện ích hành chính & pháp lý',
+      description:
+        'Tra cứu tức thì quy định thể thức văn bản hành chính NĐ 30/2020, HD 05-HD/VPTW, NĐ 152/2025, TT 26/2019, TT 68/2023 và HD 29-HD/TWĐTN.',
+      features: [
+        'Tìm kiếm không dấu siêu tốc theo số hiệu và từ khóa',
+        'Bảng quy chuẩn chi tiết: phông chữ, cỡ chữ, căn lề từng phần',
+        'Sao chép trích dẫn căn cứ pháp lý và mở kho 165+ mẫu chuẩn',
+      ],
+      badge: 'Mới',
+      badgeColor: 'purple',
+      icon: <BookOutlined style={{ fontSize: 24, color: '#7C3AED' }} />,
+      iconBg: '#F5F3FF',
+      iconBorder: '#DDD6FE',
+      actionLabel: 'Mở tiện ích',
+      onAction: () => {
+        if (onOpenDocLookupModule) {
+          onOpenDocLookupModule();
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/tien-ich/tra-cuu-van-ban';
+        }
+      },
+    },
+    {
+      id: 'util-check-chinh-ta',
+      code: 'CHECK_CHINH_TA',
+      path: '/tien-ich/check-chinh-ta',
+      title: 'Soát lỗi chính tả & ngữ phong',
+      category: 'Tiện ích hành chính & soạn thảo',
+      description:
+        'Rà soát lỗi gõ phím Telex/VNI, 404 cụm từ dễ nhầm lẫn trong hành chính, quy tắc viết hoa chức danh tổ chức và dấu câu theo NĐ 30/2020.',
+      features: [
+        'Phát hiện sai sót 4 tầng ngay tức thì (gõ phím, từ dễ nhầm, viết hoa, dấu câu)',
+        'Chống báo lỗi giả với mã văn bản, ngày tháng và số hiệu hành chính',
+        'Sửa lỗi từng cụm từ hoặc tự động chuẩn hóa toàn bộ chỉ với 1 chạm',
+      ],
+      badge: 'Mới',
+      badgeColor: 'green',
+      icon: <SafetyCertificateOutlined style={{ fontSize: 24, color: '#059669' }} />,
+      iconBg: '#ECFDF5',
+      iconBorder: '#A7F3D0',
+      actionLabel: 'Mở tiện ích',
+      onAction: () => {
+        if (onOpenSpellCheckModule) {
+          onOpenSpellCheckModule();
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/tien-ich/check-chinh-ta';
         }
       },
     },

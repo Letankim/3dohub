@@ -72,3 +72,4 @@ export interface ProcessedImageResult {
   format: string;
   isKeptOriginal: boolean;
 }
+

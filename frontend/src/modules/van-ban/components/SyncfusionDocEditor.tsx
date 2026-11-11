@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Badge, Button, Select, Tooltip, message } from 'antd';
+import { Badge, Button, Select, Tooltip, message } from 'antd';
 import {
   ThunderboltFilled,
   CopyOutlined,
@@ -10,6 +10,7 @@ import {
   FileTextOutlined,
   BankOutlined,
   UploadOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { registerLicense } from '@syncfusion/ej2-base';
 import {
@@ -23,6 +24,7 @@ import { extractTextAndFootnotesFromSfdt } from '../utils/sfdt-extract';
 import { copyMsoHtmlToClipboard } from '../utils/clipboard-export';
 import { DOC_EDITOR_TOOLBAR_ITEMS, FALLBACK_PROFILES } from './doc-editor-constants';
 import { DocEditorLogicAlert } from './DocEditorLogicAlert';
+import { QuickSpellCheckModal } from '@/modules/spell-check/components/QuickSpellCheckModal';
 
 // Đăng ký module Toolbar một lần an toàn
 try {
@@ -66,6 +68,8 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
   const [ready, setReady] = useState(false);
   const [hasLicense, setHasLicense] = useState<boolean>(true);
   const [licenseChecked, setLicenseChecked] = useState<boolean>(false);
+  const [spellModalOpen, setSpellModalOpen] = useState<boolean>(false);
+  const [spellModalText, setSpellModalText] = useState<string>('');
 
   // Đăng ký license TRƯỚC khi dựng editor (Syncfusion kiểm tra key lúc component khởi tạo).
   // Key chỉ lấy từ biến môi trường SYNCFUSION_LICENSE_KEY (hoặc NEXT_PUBLIC_...) qua /api/license.
@@ -400,6 +404,16 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
         <Button icon={<FileTextOutlined />} onClick={onOpenTemplatesModal}>
           Mẫu chuẩn
         </Button>
+        <Button
+          icon={<SafetyCertificateOutlined style={{ color: '#059669' }} />}
+          onClick={() => {
+            const { text } = getEditorTextAndFootnotes();
+            setSpellModalText(text || rawText);
+            setSpellModalOpen(true);
+          }}
+        >
+          Chính tả
+        </Button>
         <Button icon={<BankOutlined />} onClick={onOpenUnitModal}>
           Đơn vị
         </Button>
@@ -407,7 +421,16 @@ export const SyncfusionDocEditor: React.FC<SyncfusionDocEditorProps> = ({
 
       <DocEditorLogicAlert normResult={normResult} onOpenLogicModal={onOpenLogicModal} />
 
-
+      <QuickSpellCheckModal
+        open={spellModalOpen}
+        onClose={() => setSpellModalOpen(false)}
+        initialText={spellModalText}
+        onApplyCorrectedText={(fixed) => {
+          onChangeRawText(fixed);
+          const { footnotes } = getEditorTextAndFootnotes();
+          onNormalize(fixed, footnotes);
+        }}
+      />
 
       <div style={{ height: 'calc(100vh - 230px)', minHeight: 620 }}>
         {licenseChecked && (

@@ -88,3 +88,4 @@ export const ImageHubWorkspace: React.FC<ImageHubWorkspaceProps> = ({
 };
 
 export default ImageHubWorkspace;
+

@@ -41,10 +41,10 @@ export const HeroOverviewSection: React.FC<HeroOverviewSectionProps> = ({
       badge: 'Excel A4',
     },
     {
-      title: '17 mẫu chuẩn & 18 quy tắc rà soát',
-      desc: '9 mẫu khối Đảng (HD 05-HD/VPTW) & 8 mẫu khối Nhà nước (NĐ 30/2020/NĐ-CP) kèm kiểm tra nhảy số Điều, Khoản, mục La Mã.',
+      title: 'Kho 165+ mẫu chuẩn & 18 quy tắc rà soát',
+      desc: 'Đầy đủ mẫu Đảng, Hành chính NĐ 30, Khen thưởng NĐ 152, Công an TT 26, Quân đội TT 68 & Đoàn TN kèm kiểm tra nhảy số tự động.',
       icon: <AuditOutlined style={{ color: '#059669', fontSize: 20 }} />,
-      badge: 'Rà soát lỗi',
+      badge: '165+ Mẫu',
     },
   ];
 
@@ -140,7 +140,7 @@ export const HeroOverviewSection: React.FC<HeroOverviewSectionProps> = ({
             onClick={onOpenTemplates}
             style={{ height: 44, padding: '0 20px', fontWeight: 500, borderRadius: 4 }}
           >
-            Kho 17 mẫu chuẩn
+            Kho 165+ mẫu chuẩn
           </Button>
           <Button
             size="large"

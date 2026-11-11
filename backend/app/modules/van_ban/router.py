@@ -145,8 +145,23 @@ async def list_profiles(request: Request):
 
 
 @router.get("/templates")
-async def list_templates(request: Request, group: Optional[str] = None):
-    """Return the 17 standard templates (9 Khối Đảng + 8 Khối Nhà nước)."""
+async def list_templates(
+    request: Request,
+    group: Optional[str] = None,
+    catalog: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Return templates: default 17 standard, or full 165+ when catalog='all' or category is set."""
+    if catalog == "all" or category is not None:
+        from app.modules.van_ban.extended_templates import get_extended_templates_list
+        items = get_extended_templates_list(category)
+        return api_success(
+            data=items,
+            message="Lấy danh sách kho 165+ mẫu văn bản thành công",
+            meta={"total": len(items), "catalog": "all", "category": category or "ALL"},
+            request=request,
+        )
+
     if group and group.upper() not in ("DANG", "NHA_NUOC"):
         raise BusinessValidationException.single_field(
             field="group",
@@ -176,7 +191,8 @@ async def generate_from_template(
 
     effective_profile = payload.profile_id.upper()
     if effective_profile == "AUTO":
-        effective_profile = "DANG" if tpl["group"] == "DANG" else "CHINH_QUYEN"
+        grp = tpl.get("group") or tpl.get("category", "")
+        effective_profile = "DANG" if grp == "DANG" else "CHINH_QUYEN"
 
     result = _build_full_normalization_payload(
         raw_text.splitlines(), effective_profile, t0

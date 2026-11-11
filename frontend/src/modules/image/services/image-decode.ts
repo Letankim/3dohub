@@ -70,3 +70,4 @@ export async function createBitmapSafe(source: File | Blob): Promise<ImageBitmap
   URL.revokeObjectURL(url);
   return await createImageBitmap(canvas);
 }
+
