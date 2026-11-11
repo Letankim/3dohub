@@ -26,13 +26,14 @@ export const AppShell: React.FC<AppShellProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
 
   useEffect(() => {
     const checkViewport = () => {
-      const mobile = window.innerWidth < 992;
-      setIsMobile(mobile);
+      setIsMobile(window.innerWidth < 992);
+      setIsPhone(window.innerWidth < 768);
     };
     checkViewport();
     window.addEventListener('resize', checkViewport);
@@ -136,7 +137,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         <main
           style={{
             flex: 1,
-            padding: isFocusMode ? '8px 10px' : '12px 16px',
+            padding: isFocusMode ? (isPhone ? '4px' : '8px 10px') : isPhone ? '8px 6px' : '12px 16px',
             width: '100%',
             minWidth: 0,
           }}

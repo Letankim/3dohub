@@ -114,22 +114,25 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       title: 'Thành phần thể thức',
       dataIndex: 'component',
       key: 'component',
-      width: 190,
+      width: 185,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
       render: (val: string) => <Text strong style={{ color: '#0F172A' }}>{val}</Text>,
     },
     {
       title: 'Kiểu chữ',
       dataIndex: 'fontStyle',
       key: 'fontStyle',
-      width: 210,
+      width: 205,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Cỡ chữ',
       dataIndex: 'fontSize',
       key: 'fontSize',
       width: 115,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
       render: (val: string) => (
-        <Tag color="blue" style={{ margin: 0, fontWeight: 600 }}>
+        <Tag color="blue" style={{ margin: 0, fontWeight: 600, whiteSpace: 'nowrap' }}>
           {val}
         </Tag>
       ),
@@ -138,12 +141,15 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       title: 'Vị trí & Căn lề',
       dataIndex: 'alignment',
       key: 'alignment',
-      width: 200,
+      width: 195,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Quy chuẩn & Ví dụ',
       dataIndex: 'note',
       key: 'note',
+      width: 280,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
       render: (val: string) => (
         <Text type="secondary" style={{ fontSize: 12.5 }}>
           {val}
@@ -163,7 +169,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
           marginBottom: 16,
           background: '#FFFFFF',
         }}
-        styles={{ body: { padding: isMobile ? 14 : '18px 22px' } }}
+        styles={{ body: { padding: isMobile ? 10 : '18px 22px' } }}
       >
         <div
           style={{
@@ -224,6 +230,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
           activeKey={activeCategory}
           onChange={setActiveCategory}
           size="small"
+          tabBarGutter={isMobile ? 12 : 24}
           style={{ marginBottom: -12 }}
           items={[
             { key: 'ALL', label: `Tất cả (${regulations.length})` },
@@ -253,7 +260,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
               <Card
                 key={item.id}
                 style={{ borderRadius: 6, border: '1px solid #E2E8F0', background: '#FFFFFF' }}
-                styles={{ body: { padding: isMobile ? 14 : 22 } }}
+                styles={{ body: { padding: isMobile ? 10 : 22 } }}
               >
                 <div
                   style={{
@@ -264,7 +271,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
                     gap: 12,
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 240 }}>
+                  <div style={{ flex: 1, minWidth: isMobile ? 0 : 240, width: isMobile ? '100%' : 'auto' }}>
                     <Space wrap style={{ marginBottom: 8 }}>
                       <Tag color={item.categoryColor} style={{ fontWeight: 600, margin: 0 }}>
                         {item.categoryLabel}
@@ -311,7 +318,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
                       background: '#F8FAFC',
                       border: '1px solid #E2E8F0',
                       borderRadius: 6,
-                      padding: '12px 16px',
+                      padding: isMobile ? '8px 10px' : '12px 16px',
                     }}
                   >
                     <ul style={{ margin: 0, paddingLeft: 18 }}>
@@ -335,7 +342,7 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
                     pagination={false}
                     size="small"
                     bordered
-                    scroll={{ x: 680 }}
+                    scroll={{ x: 980 }}
                   />
                 </div>
               </Card>

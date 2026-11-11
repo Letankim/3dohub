@@ -75,7 +75,7 @@ export const ImageHubWorkspace: React.FC<ImageHubWorkspaceProps> = ({
         border: '1px solid #E2E8F0',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
       }}
-      bodyStyle={{ padding: isMobile ? 12 : 20 }}
+      styles={{ body: { padding: isMobile ? 8 : 20 } }}
     >
       <Tabs
         activeKey={activeTab}

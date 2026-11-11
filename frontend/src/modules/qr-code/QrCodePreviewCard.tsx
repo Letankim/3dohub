@@ -19,6 +19,7 @@ import {
   ShareAltOutlined,
   PictureOutlined,
 } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 import { QrCustomization, QrContentType } from './qr-types';
 import {
   downloadQrCanvasAsPng,
@@ -46,6 +47,7 @@ export const QrCodePreviewCard: React.FC<QrCodePreviewCardProps> = ({
   customization,
   onSaveToHistory,
 }) => {
+  const isMobile = useIsMobile();
   const [copied, setCopied] = useState(false);
 
   const handleDownloadPng = () => {
@@ -95,7 +97,7 @@ export const QrCodePreviewCard: React.FC<QrCodePreviewCardProps> = ({
         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
         background: '#FFFFFF',
       }}
-      styles={{ body: { padding: 24, textAlign: 'center' } }}
+      styles={{ body: { padding: isMobile ? 12 : 24, textAlign: 'center' } }}
     >
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text strong style={{ fontSize: 14, color: '#0F172A' }}>

@@ -1,4 +1,4 @@
-"""Hybrid 4-layer Vietnamese Administrative Spell Check & Style Engine (Backend)."""
+"""Hybrid Vietnamese Administrative Spelling & Semantic Engine (Backend)."""
 
 import difflib
 import json
@@ -31,11 +31,33 @@ _NEVER_FLAG_PHRASES = {
     "độc lập - tự do - hạnh phúc",
     "đảng cộng sản việt nam",
 }
+_COMMON_LOANWORDS = {
+    "ok", "email", "file", "pdf", "word", "excel", "powerpoint", "online",
+    "offline", "web", "website", "app", "api", "vip", "zalo", "zoom",
+    "wifi", "usb", "link", "qr", "code", "server", "cloud", "data",
+    "software", "hardware", "internet", "hotline", "fanpage", "tivi",
+    "video", "camera", "micro", "slide", "avatar", "logo", "docx",
+    "xlsx", "csv", "png", "jpg", "jpeg", "webp", "html", "css", "url",
+    "http", "https", "sms", "ai", "it", "hr", "pc", "tv", "ram", "cpu",
+}
+_ASCII_FOREIGN_RX = re.compile(r"^[a-z]+$", re.ASCII)
 
 
 def _unaccent(s: str) -> str:
     nfkd = unicodedata.normalize("NFD", s)
     return "".join(c for c in nfkd if unicodedata.category(c) != "Mn").replace("đ", "d").replace("Đ", "D").lower()
+
+
+def _is_likely_foreign_loanword(word_low: str) -> bool:
+    if word_low in _COMMON_LOANWORDS:
+        return True
+    if not _ASCII_FOREIGN_RX.match(word_low):
+        return False
+    if any(ch in word_low for ch in ("f", "j", "w", "z")):
+        return True
+    if len(word_low) >= 4 and word_low.endswith(("ing", "tion", "ment", "ness", "able", "ship", "ed")):
+        return True
+    return False
 
 
 def _load_resources() -> dict[str, Any]:
@@ -61,7 +83,7 @@ def _load_resources() -> dict[str, Any]:
         confusable_compiled.append((re.compile(esc, re.IGNORECASE), c))
 
     lexicon_set = set(raw.get("lexicon", []))
-    lexicon_set.update({"ok", "email", "file", "pdf", "word", "excel", "online", "web", "app", "api", "vip"})
+    lexicon_set.update(_COMMON_LOANWORDS)
 
     unaccent_map: dict[str, list[str]] = {}
     for w in lexicon_set:
@@ -96,6 +118,10 @@ def _in_protected(start: int, end: int, ranges: list[tuple[int, int]]) -> bool:
     return any(max(start, r0) < min(end, r1) for r0, r1 in ranges)
 
 
+def _has_overlap(s: int, e: int, spans: list[tuple[int, int]]) -> bool:
+    return any(max(s, u0) < min(e, u1) for u0, u1 in spans)
+
+
 def _snippet(text: str, start: int, end: int) -> str:
     b = text[max(0, start - 24):start]
     m = text[start:end]
@@ -108,19 +134,20 @@ def _merge_ai_issues(
     issues: list[dict[str, Any]],
     protected_ranges: list[tuple[int, int]],
     seq_start: int,
-) -> None:
-    """Query backend Groq rotation service and ground verified issues onto exact character spans."""
+) -> int:
+    """Query backend Groq rotation service and ground verified semantic/spelling issues onto exact spans."""
     ai_items = query_groq_spell_issues(text)
     if not ai_items:
-        return
+        return seq_start
 
     cat_map = {
         "SPELLING": ("SPELLING", "Chính tả", "error"),
-        "CONFUSABLE": ("CONFUSABLE", "Ngữ cảnh từ vựng", "warning"),
+        "SEMANTIC": ("CONFUSABLE", "Ngữ nghĩa & Ngữ cảnh", "warning"),
+        "CONFUSABLE": ("CONFUSABLE", "Ngữ nghĩa & Ngữ cảnh", "warning"),
         "CAPITALIZATION": ("CAPITALIZATION", "Viết hoa thể thức", "warning"),
         "PUNCTUATION": ("PUNCTUATION", "Dấu câu", "info"),
     }
-    used_spans = {(i["startIndex"], i["endIndex"]) for i in issues}
+    used_spans = [(i["startIndex"], i["endIndex"]) for i in issues]
     seq = seq_start
 
     for item in ai_items:
@@ -129,9 +156,14 @@ def _merge_ai_issues(
         reason = str(item.get("reason") or "").strip()
         raw_cat = str(item.get("category") or "SPELLING").upper()
 
-        if not orig or not repl or orig == repl:
+        if not orig or not repl:
+            continue
+        if unicodedata.normalize("NFC", orig) == unicodedata.normalize("NFC", repl):
             continue
         if orig.lower() in _NEVER_FLAG_PHRASES or orig.isupper():
+            continue
+        # Never turn multi-word prose phrases (like "Ủy ban nhân dân xã") into ALL-CAPS
+        if " " in orig and repl.isupper() and not orig.isupper():
             continue
 
         cat, cat_label, sev = cat_map.get(raw_cat, ("SPELLING", "Chính tả", "warning"))
@@ -146,10 +178,10 @@ def _merge_ai_issues(
                 continue
             if len(orig) >= 2 and orig[0].isalnum() and orig[-1].isalnum() and not _is_boundary(text, s, e):
                 continue
-            if any(max(s, u0) < min(e, u1) for u0, u1 in used_spans):
+            if _has_overlap(s, e, used_spans):
                 continue
 
-            used_spans.add((s, e))
+            used_spans.append((s, e))
             issues.append({
                 "id": f"ai_{seq}",
                 "startIndex": s,
@@ -166,9 +198,11 @@ def _merge_ai_issues(
             })
             seq += 1
 
+    return seq
+
 
 def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
-    """Run hybrid rule-based + Groq model-rotation Vietnamese administrative spell check."""
+    """Run hybrid rule-based + Groq model-rotation Vietnamese spelling & semantic analysis."""
     t0 = time.perf_counter()
     if not text or not text.strip():
         return {
@@ -234,7 +268,7 @@ def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
             issues.append({
                 "id": f"confuse_{seq}", "startIndex": s, "endIndex": e,
                 "original": orig, "replacement": repl,
-                "category": "CONFUSABLE", "categoryLabel": "Ngữ cảnh từ vựng",
+                "category": "CONFUSABLE", "categoryLabel": "Ngữ nghĩa & Ngữ cảnh",
                 "severity": meta.get("severity", "warning"),
                 "message": meta.get("description") or f'Từ ngữ chuẩn mực là "{meta["correct"]}"',
                 "context": _snippet(text, s, e), "ruleId": f"CONFUSE_{meta['wrong']}",
@@ -242,8 +276,9 @@ def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
             })
             seq += 1
 
-    # Layer 3: Telex/VNI typos & Syllable lexicon check (NFC-safe)
+    # Layer 3a: Exact Telex/VNI typos
     typo_map, lexicon, unaccent_map = res["typo_map"], res["lexicon"], res["unaccent_map"]
+    unknown_word_candidates: list[tuple[int, int, str, str]] = []
     for m in _WORD_RX.finditer(text):
         word = m.group(0)
         s, e = m.start(), m.end()
@@ -262,23 +297,8 @@ def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
             })
             seq += 1
         elif word.islower() and len(word) >= 2 and lower_nfc not in lexicon:
-            ua = _unaccent(lower_nfc)
-            cands = unaccent_map.get(ua)
-            if not cands:
-                near = difflib.get_close_matches(ua, res["unaccent_keys"], n=1, cutoff=0.75)
-                if near:
-                    cands = unaccent_map.get(near[0])
-            if cands:
-                sug = cands[0]
-                issues.append({
-                    "id": f"lex_{seq}", "startIndex": s, "endIndex": e,
-                    "original": word, "replacement": sug,
-                    "category": "SPELLING", "categoryLabel": "Chính tả từ đơn",
-                    "severity": "warning", "message": f'Nghi vấn sai chính tả âm tiết "{word}". Gợi ý gần nhất: "{sug}"',
-                    "context": _snippet(text, s, e), "ruleId": "LEXICON_UNKNOWN_SYLLABLE",
-                    "isSafeAutoFix": False,
-                })
-                seq += 1
+            if not _is_likely_foreign_loanword(lower_nfc):
+                unknown_word_candidates.append((s, e, word, lower_nfc))
 
     # Layer 4: Administrative Capitalization Rules (ignoring ALL-CAPS official headers)
     for rx, correct, label in ADMIN_CAPITALIZATION:
@@ -301,9 +321,32 @@ def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
                 })
                 seq += 1
 
-    # Layer 5: Backend Contextual Analysis via Groq Multi-Model Rotation
+    # Layer 5: Contextual & Semantic Analysis via Groq Multi-Model Rotation (prioritized over unaccent guesses)
     if use_ai:
-        _merge_ai_issues(text, issues, protected_ranges, seq)
+        seq = _merge_ai_issues(text, issues, protected_ranges, seq)
+
+    # Layer 3b: Fallback unaccent lexicon check ONLY for words not covered by any contextual/rule issue
+    covered_spans = [(i["startIndex"], i["endIndex"]) for i in issues]
+    for s, e, word, lower_nfc in unknown_word_candidates:
+        if _has_overlap(s, e, covered_spans):
+            continue
+        ua = _unaccent(lower_nfc)
+        cands = unaccent_map.get(ua)
+        if not cands:
+            near = difflib.get_close_matches(ua, res["unaccent_keys"], n=1, cutoff=0.75)
+            if near:
+                cands = unaccent_map.get(near[0])
+        if cands:
+            sug = cands[0]
+            issues.append({
+                "id": f"lex_{seq}", "startIndex": s, "endIndex": e,
+                "original": word, "replacement": sug,
+                "category": "SPELLING", "categoryLabel": "Chính tả từ đơn",
+                "severity": "warning", "message": f'Nghi vấn sai chính tả âm tiết "{word}". Gợi ý gần nhất: "{sug}"',
+                "context": _snippet(text, s, e), "ruleId": "LEXICON_UNKNOWN_SYLLABLE",
+                "isSafeAutoFix": False,
+            })
+            seq += 1
 
     # Deduplicate overlapping spans (prefer earlier start, then longer match)
     issues.sort(key=lambda x: (x["startIndex"], -(x["endIndex"] - x["startIndex"])))

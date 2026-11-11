@@ -218,15 +218,16 @@ export const SpellCheckWorkspace: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 1380, margin: '0 auto', padding: isMobile ? '8px 12px' : '16px 20px' }}>
+    <div style={{ maxWidth: 1380, margin: '0 auto', padding: isMobile ? 0 : '8px 12px' }}>
       <Card
         size="small"
         style={{
           borderRadius: 6,
           border: '1px solid #E2E8F0',
-          marginBottom: 16,
+          marginBottom: isMobile ? 10 : 16,
           background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)',
         }}
+        styles={{ body: { padding: isMobile ? 10 : 14 } }}
       >
         <div
           style={{
@@ -313,11 +314,12 @@ export const SpellCheckWorkspace: React.FC = () => {
         </div>
       </Card>
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={isMobile ? [8, 8] : [14, 14]}>
         <Col xs={24} lg={15}>
           <Card
             size="small"
             style={{ borderRadius: 6, border: '1px solid #E2E8F0', height: '100%' }}
+            styles={{ body: { padding: isMobile ? 10 : 14 } }}
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <Segmented
@@ -365,6 +367,7 @@ export const SpellCheckWorkspace: React.FC = () => {
           <Card
             size="small"
             style={{ borderRadius: 6, border: '1px solid #E2E8F0', height: '100%' }}
+            styles={{ body: { padding: isMobile ? 10 : 14 } }}
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Space>
@@ -394,7 +397,7 @@ export const SpellCheckWorkspace: React.FC = () => {
               size="small"
               items={[
                 { key: 'ALL', label: `Tất cả (${stats.total})` },
-                { key: 'CONFUSABLE', label: `Ngữ cảnh (${stats.confusable})` },
+                { key: 'CONFUSABLE', label: `Ngữ nghĩa (${stats.confusable})` },
                 { key: 'SPELLING', label: `Chính tả (${stats.spelling})` },
                 { key: 'CAPITALIZATION', label: `Viết hoa (${stats.capitalization})` },
                 { key: 'PUNCTUATION', label: `Dấu câu (${stats.punctuation})` },
@@ -429,7 +432,7 @@ export const SpellCheckWorkspace: React.FC = () => {
                         }}
                         styles={{ body: { padding: 10 } }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                           <Tag color={getTagColor(iss.category)} style={{ margin: 0, fontSize: 11 }}>
                             {iss.categoryLabel}
                           </Tag>
@@ -444,6 +447,9 @@ export const SpellCheckWorkspace: React.FC = () => {
                               fontSize: 12,
                               height: 24,
                               padding: '0 8px',
+                              maxWidth: isMobile ? 210 : 240,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             Sửa: {iss.replacement === '' ? 'Xóa khoảng trắng' : iss.replacement}

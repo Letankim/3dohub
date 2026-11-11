@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Row, Col, Card, Typography } from 'antd';
 import { QrcodeOutlined } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 import { QrContentType, QrCustomization } from './qr-types';
 import { QrCodeForm } from './QrCodeForm';
 import { QrCodeCustomizer } from './QrCodeCustomizer';
@@ -19,6 +20,7 @@ const DEFAULT_CUSTOMIZATION: QrCustomization = {
 };
 
 export const QrCodeWorkspace: React.FC = () => {
+  const isMobile = useIsMobile();
   const [payload, setPayload] = useState('https://3dohub.com');
   const [title, setTitle] = useState('Liên kết: https://3dohub.com');
   const [type, setType] = useState<QrContentType>('URL');
@@ -37,7 +39,7 @@ export const QrCodeWorkspace: React.FC = () => {
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%)',
           borderRadius: 6,
-          padding: '20px 24px',
+          padding: isMobile ? '14px 12px' : '20px 24px',
           color: '#FFFFFF',
           boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)',
         }}
@@ -79,7 +81,7 @@ export const QrCodeWorkspace: React.FC = () => {
               boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
               background: '#FFFFFF',
             }}
-            styles={{ body: { padding: 20 } }}
+            styles={{ body: { padding: isMobile ? 10 : 20 } }}
           >
             <QrCodeForm onChange={handleFormChange} />
             <QrCodeCustomizer value={customization} onChange={setCustomization} />

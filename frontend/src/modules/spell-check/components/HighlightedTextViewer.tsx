@@ -3,6 +3,7 @@
 import React from 'react';
 import { Popover, Button, Tag, Typography, Space } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 import { SpellCheckIssueItem } from '@/types/api';
 
 const { Text } = Typography;
@@ -18,6 +19,7 @@ export const HighlightedTextViewer: React.FC<HighlightedTextViewerProps> = ({
   issues,
   onFixIssue,
 }) => {
+  const isMobile = useIsMobile();
   if (!text) {
     return (
       <Text type="secondary" style={{ fontStyle: 'italic' }}>
@@ -151,12 +153,12 @@ export const HighlightedTextViewer: React.FC<HighlightedTextViewerProps> = ({
         lineHeight: 1.65,
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
-        padding: 12,
+        padding: isMobile ? 10 : 12,
         border: '1px solid #CBD5E1',
         borderRadius: 4,
         backgroundColor: '#FFFFFF',
-        minHeight: 420,
-        maxHeight: 500,
+        minHeight: isMobile ? 260 : 420,
+        maxHeight: isMobile ? 400 : 500,
         overflowY: 'auto',
       }}
     >

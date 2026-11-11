@@ -16,6 +16,7 @@ from app.core.security import (
     rate_limiter,
     nonce_guard,
 )
+from app.modules.spell_check.groq_client import _extract_json_issues
 
 raw_client = TestClient(app)
 
@@ -94,6 +95,25 @@ def test_spell_check_analyze_and_autofix():
     assert "Đảng Cộng sản Việt Nam" in d2["fixed_text"]
     assert "Cộng hòa xã hội chủ nghĩa Việt Nam" in d2["fixed_text"]
     assert d2["remaining"]["stats"]["total"] == 0
+
+    # 3. Clean prose containing normal-case agency name must NOT produce ALL-CAPS or false positives
+    clean_prose = (
+        "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n"
+        "Độc lập - Tự do - Hạnh phúc\n\n"
+        "Ủy ban nhân dân xã triển khai kế hoạch chuyển đổi số năm 2026 theo "
+        "Nghị định số 30/2020/NĐ-CP qua Zalo và website nhanh chóng, minh bạch."
+    )
+    raw_prose = json.dumps({"text": clean_prose}, ensure_ascii=False).encode("utf-8")
+    h3 = make_headers("POST", "/api/v1/spell-check/analyze", raw_prose)
+    h3["Content-Type"] = "application/json"
+    r3 = raw_client.post("/api/v1/spell-check/analyze", content=raw_prose, headers=h3)
+    assert r3.status_code == 200
+    assert r3.json()["data"]["stats"]["total"] == 0, f"Prose false positives: {r3.json()['data']['issues']}"
+
+    # 4. Parser fallback check: empty/truncated outputs yield None so rotation continues
+    assert _extract_json_issues("") is None
+    assert _extract_json_issues("{broken") is None
+    assert _extract_json_issues('{"issues": []}') == []
 
 
 def test_doc_lookup_regulations_endpoint():

@@ -10,6 +10,7 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '@/services/api-client';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 import { ShortLinkItem } from '@/types/api';
 import { CreateShortLinkModal } from './CreateShortLinkModal';
 import { ShortLinkTable } from './ShortLinkTable';
@@ -18,6 +19,7 @@ import { ShortLinkStatsModal } from './ShortLinkStatsModal';
 const { Title, Text } = Typography;
 
 export const ShortLinkWorkspace: React.FC = () => {
+  const isMobile = useIsMobile();
   const [links, setLinks] = useState<ShortLinkItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedStatsCode, setSelectedStatsCode] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export const ShortLinkWorkspace: React.FC = () => {
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%)',
           borderRadius: 6,
-          padding: '20px 24px',
+          padding: isMobile ? '14px 12px' : '20px 24px',
           color: '#FFFFFF',
           boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)',
         }}
@@ -146,7 +148,7 @@ export const ShortLinkWorkspace: React.FC = () => {
           background: '#FFFFFF',
           width: '100%',
         }}
-        styles={{ body: { padding: 20 } }}
+        styles={{ body: { padding: isMobile ? 10 : 20 } }}
       >
         <div style={{ marginBottom: 16 }}>
           <Title level={5} style={{ margin: 0, color: '#0F172A', fontWeight: 600 }}>

@@ -46,7 +46,7 @@ export const PdfHubWorkspace: React.FC = () => {
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%)',
           borderRadius: 6,
-          padding: isMobile ? '14px 16px' : '18px 24px',
+          padding: isMobile ? '12px 12px' : '18px 24px',
         }}
       >
         <Title level={isMobile ? 4 : 3} style={{ color: '#FFFFFF', margin: '0 0 4px 0', fontWeight: 700 }}>
@@ -57,7 +57,7 @@ export const PdfHubWorkspace: React.FC = () => {
 
       <Card
         style={{ borderRadius: 6, border: '1px solid #E2E8F0', width: '100%' }}
-        styles={{ body: { padding: isMobile ? '0 10px 12px' : '4px 20px 20px' } }}
+        styles={{ body: { padding: isMobile ? '0 8px 10px' : '4px 20px 20px' } }}
       >
         <Tabs
           activeKey={activeTab}

@@ -10,6 +10,7 @@ import {
   AuditOutlined,
   CopyOutlined,
 } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -27,6 +28,7 @@ export const HeroOverviewSection: React.FC<HeroOverviewSectionProps> = ({
   onOpenTemplates,
   onOpenUpload,
 }) => {
+  const isMobile = useIsMobile();
   const highlights = [
     {
       title: 'Chuẩn hóa văn bản 6 bước tự động',
@@ -56,19 +58,22 @@ export const HeroOverviewSection: React.FC<HeroOverviewSectionProps> = ({
           background: '#FFFFFF',
           border: '1px solid #E2E8F0',
           borderRadius: 6,
-          padding: '52px 32px',
+          padding: isMobile ? '22px 12px' : '52px 32px',
           textAlign: 'center',
-          marginBottom: 20,
+          marginBottom: isMobile ? 12 : 20,
         }}
       >
         <Tag
           color="blue"
           style={{
-            marginBottom: 16,
-            padding: '2px 10px',
-            fontSize: 12,
+            marginBottom: 14,
+            padding: '3px 10px',
+            fontSize: isMobile ? 11 : 12,
             fontWeight: 600,
             borderRadius: 3,
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+            lineHeight: 1.4,
           }}
         >
           3DOHUB ENTERPRISE · NỀN TẢNG TIỆN ÍCH TRỰC TUYẾN ĐA LĨNH VỰC
@@ -171,7 +176,7 @@ export const HeroOverviewSection: React.FC<HeroOverviewSectionProps> = ({
                 border: '1px solid #E2E8F0',
                 cursor: 'pointer',
               }}
-              styles={{ body: { padding: 20 } }}
+              styles={{ body: { padding: isMobile ? 12 : 20 } }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 {item.icon}

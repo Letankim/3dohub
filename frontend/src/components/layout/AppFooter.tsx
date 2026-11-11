@@ -7,16 +7,19 @@ import {
   MailOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 
 const { Text } = Typography;
 
 export const AppFooter: React.FC = () => {
+  const isMobile = useIsMobile();
+
   return (
     <footer
       style={{
         background: '#FFFFFF',
         borderTop: '1px solid #E2E8F0',
-        padding: '16px 20px',
+        padding: isMobile ? '12px 10px' : '16px 20px',
         marginTop: 'auto',
         textAlign: 'center',
       }}

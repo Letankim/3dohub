@@ -16,6 +16,7 @@ import {
   BookOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -57,6 +58,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
   onOpenDocLookupModule,
   onOpenSpellCheckModule,
 }) => {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
 
   const utilityCards: UtilityCardItem[] = [
@@ -289,7 +291,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
           border: '1px solid #E2E8F0',
           background: '#FFFFFF',
         }}
-        styles={{ body: { padding: '18px 22px' } }}
+        styles={{ body: { padding: isMobile ? 12 : '18px 22px' } }}
       >
         <div
           style={{
@@ -318,7 +320,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             allowClear
-            style={{ width: 260 }}
+            style={{ width: isMobile ? '100%' : 260 }}
           />
         </div>
       </Card>
@@ -338,7 +340,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
               }}
               styles={{
                 body: {
-                  padding: 22,
+                  padding: isMobile ? 12 : 22,
                   display: 'flex',
                   flexDirection: 'column',
                   flex: 1,
@@ -414,7 +416,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
                       gap: 6,
                     }}
                   >
-                    <CheckCircleOutlined style={{ color: '#1D4ED8', fontSize: 12 }} />
+                    <CheckCircleOutlined style={{ color: '#1D4ED8', fontSize: 12, flexShrink: 0 }} />
                     <span>{f}</span>
                   </div>
                 ))}
