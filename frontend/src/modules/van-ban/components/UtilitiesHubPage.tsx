@@ -6,6 +6,7 @@ import {
   FileWordOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
+  FileImageOutlined,
   LinkOutlined,
   QrcodeOutlined,
   SearchOutlined,
@@ -22,6 +23,7 @@ export interface UtilitiesHubPageProps {
   onOpenShortLinkModule?: () => void;
   onOpenQrCodeModule?: () => void;
   onOpenPdfModule?: () => void;
+  onOpenImageModule?: () => void;
 }
 
 interface UtilityCardItem {
@@ -47,6 +49,7 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
   onOpenShortLinkModule,
   onOpenQrCodeModule,
   onOpenPdfModule,
+  onOpenImageModule,
 }) => {
   const [search, setSearch] = useState('');
 
@@ -176,6 +179,34 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
           onOpenPdfModule();
         } else if (typeof window !== 'undefined') {
           window.location.href = '/tien-ich/xu-ly-pdf';
+        }
+      },
+    },
+    {
+      id: 'util-xu-ly-anh',
+      code: 'XU_LY_ANH',
+      path: '/tien-ich/xu-ly-anh',
+      title: 'Tiện ích Xử lý Ảnh',
+      category: 'Tiện ích hình ảnh & đồ họa',
+      description:
+        'Công cụ xử lý hình ảnh toàn diện: Nén ảnh giữ nét tuyệt đối, chuyển đổi linh hoạt giữa JPG/PNG/WebP, thay đổi kích thước theo mẫu thẻ CCCD/Avatar và gộp nhiều ảnh thành 1 file PDF.',
+      features: [
+        'Nén ảnh giữ nét, cân bằng hoặc theo dung lượng mục tiêu (KB)',
+        'Đổi định dạng JPG ⇄ PNG ⇄ WebP, bảo toàn độ trong suốt',
+        'Đổi cỡ ảnh theo mẫu ảnh thẻ 3x4, 4x6, avatar, xoay và lật ảnh',
+        'Gộp nhiều ảnh thành 1 tệp PDF chuẩn A4, tải ảnh lẻ hoặc file ZIP',
+      ],
+      badge: 'Mới',
+      badgeColor: 'cyan',
+      icon: <FileImageOutlined style={{ fontSize: 24, color: '#0284C7' }} />,
+      iconBg: '#F0F9FF',
+      iconBorder: '#BAE6FD',
+      actionLabel: 'Mở tiện ích',
+      onAction: () => {
+        if (onOpenImageModule) {
+          onOpenImageModule();
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/tien-ich/xu-ly-anh';
         }
       },
     },

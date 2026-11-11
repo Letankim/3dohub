@@ -8,6 +8,7 @@ import {
   FileWordOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
+  FileImageOutlined,
   LinkOutlined,
   QrcodeOutlined,
   SearchOutlined,
@@ -38,6 +39,8 @@ const getModuleIcon = (key: string, fontSize = 17) => {
       return <QrcodeOutlined style={{ fontSize }} />;
     case 'pdf-module':
       return <FilePdfOutlined style={{ fontSize, color: '#DC2626' }} />;
+    case 'image-module':
+      return <FileImageOutlined style={{ fontSize, color: '#0284C7' }} />;
     case 'van-ban-module':
     default:
       return <FileWordOutlined style={{ fontSize }} />;

@@ -23,6 +23,7 @@ import { ExcelNormWorkspace } from '@/modules/excel-norm/ExcelNormWorkspace';
 import { ShortLinkWorkspace } from '@/modules/short-link/ShortLinkWorkspace';
 import { QrCodeWorkspace } from '@/modules/qr-code/QrCodeWorkspace';
 import { PdfHubWorkspace } from '@/modules/pdf/PdfHubWorkspace';
+import { ImageHubWorkspace } from '@/modules/image/ImageHubWorkspace';
 import { HUB_MODULES_REGISTRY, HubNavModule } from '@/config/modules-registry';
 import { hubApi, HubApiException } from '@/services/api-client';
 import {
@@ -72,7 +73,8 @@ export interface VanBanHubWorkspaceProps {
     | 'EXCEL_WORKSPACE'
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
-    | 'PDF_WORKSPACE';
+    | 'PDF_WORKSPACE'
+    | 'IMAGE_WORKSPACE';
 }
 
 export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
@@ -89,6 +91,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
     | 'PDF_WORKSPACE'
+    | 'IMAGE_WORKSPACE'
   >(initialMode);
   const [activeNavKey, setActiveNavKey] = useState<string>(
     initialMode === 'HERO_HOME'
@@ -101,6 +104,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'qr-code-module'
       : initialMode === 'PDF_WORKSPACE'
       ? 'pdf-module'
+      : initialMode === 'IMAGE_WORKSPACE'
+      ? 'image-module'
       : 'van-ban-module'
   );
   const [profiles, setProfiles] = useState<ProfileItem[]>([]);
@@ -137,6 +142,9 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     } else if (pathname?.startsWith('/tien-ich/xu-ly-pdf')) {
       setWorkspaceTab('PDF_WORKSPACE');
       setActiveNavKey('pdf-module');
+    } else if (pathname?.startsWith('/tien-ich/xu-ly-anh')) {
+      setWorkspaceTab('IMAGE_WORKSPACE');
+      setActiveNavKey('image-module');
     }
   }, [pathname]);
 
@@ -274,10 +282,12 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         initialMode === 'QR_CODE_WORKSPACE' ||
         initialMode === 'EXCEL_WORKSPACE' ||
         initialMode === 'PDF_WORKSPACE' ||
+        initialMode === 'IMAGE_WORKSPACE' ||
         pathname?.startsWith('/tien-ich/rut-gon-link') ||
         pathname?.startsWith('/tien-ich/tao-ma-qr') ||
         pathname?.startsWith('/tien-ich/chuan-hoa-excel') ||
-        pathname?.startsWith('/tien-ich/xu-ly-pdf');
+        pathname?.startsWith('/tien-ich/xu-ly-pdf') ||
+        pathname?.startsWith('/tien-ich/xu-ly-anh');
 
       if (isStandaloneTool) {
         return;
@@ -385,6 +395,14 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
     setActiveNavKey('pdf-module');
     if (pathname !== '/tien-ich/xu-ly-pdf') {
       router.push('/tien-ich/xu-ly-pdf');
+    }
+  };
+
+  const navigateToImage = () => {
+    setWorkspaceTab('IMAGE_WORKSPACE');
+    setActiveNavKey('image-module');
+    if (pathname !== '/tien-ich/xu-ly-anh') {
+      router.push('/tien-ich/xu-ly-anh');
     }
   };
 
@@ -545,6 +563,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
       ? 'Tạo mã QR'
       : workspaceTab === 'PDF_WORKSPACE'
       ? 'Tiện ích PDF'
+      : workspaceTab === 'IMAGE_WORKSPACE'
+      ? 'Tiện ích Ảnh'
       : 'Chuẩn hóa văn bản';
 
   return (
@@ -576,6 +596,7 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
           onOpenShortLinkModule={navigateToShortLink}
           onOpenQrCodeModule={navigateToQrCode}
           onOpenPdfModule={navigateToPdf}
+          onOpenImageModule={navigateToImage}
         />
       ) : workspaceTab === 'EXCEL_WORKSPACE' ? (
         <ExcelNormWorkspace />
@@ -585,6 +606,8 @@ export const VanBanHubWorkspace: React.FC<VanBanHubWorkspaceProps> = ({
         <QrCodeWorkspace />
       ) : workspaceTab === 'PDF_WORKSPACE' ? (
         <PdfHubWorkspace />
+      ) : workspaceTab === 'IMAGE_WORKSPACE' ? (
+        <ImageHubWorkspace />
       ) : (
         <>
         <EditorErrorBoundary

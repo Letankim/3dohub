@@ -17,7 +17,8 @@ export interface HubNavModule {
     | 'EXCEL_WORKSPACE'
     | 'SHORT_LINK_WORKSPACE'
     | 'QR_CODE_WORKSPACE'
-    | 'PDF_WORKSPACE';
+    | 'PDF_WORKSPACE'
+    | 'IMAGE_WORKSPACE';
 }
 
 export const HUB_MODULES_REGISTRY: HubNavModule[] = [
@@ -79,5 +80,15 @@ export const HUB_MODULES_REGISTRY: HubNavModule[] = [
       'Bộ công cụ nén file, trích xuất trang, ghép nối và sắp xếp tài liệu PDF nhanh chóng, tiện lợi',
     category: 'MAIN_HUB',
     targetTab: 'PDF_WORKSPACE',
+  },
+  {
+    key: 'image-module',
+    code: 'TIEN_ICH_ANH',
+    label: 'Tiện ích Ảnh',
+    path: '/tien-ich/xu-ly-anh',
+    shortDesc:
+      'Nén ảnh giữ nét, đổi định dạng JPG/PNG/WebP, thay đổi kích cỡ theo mẫu CCCD/Avatar và chuyển ảnh sang PDF',
+    category: 'MAIN_HUB',
+    targetTab: 'IMAGE_WORKSPACE',
   },
 ];
