@@ -9,10 +9,10 @@ router = APIRouter(prefix="/spell-check", tags=["Soát Lỗi Chính Tả & Ngữ
 
 
 @router.post("/analyze")
-async def analyze_spelling_endpoint(payload: SpellCheckRequest, request: Request):
+def analyze_spelling_endpoint(payload: SpellCheckRequest, request: Request):
     """Analyze Vietnamese administrative text and return spelling, confusable, capitalization, and punctuation issues."""
     payload.validate_business_rules()
-    result = analyze_spelling(payload.text)
+    result = analyze_spelling(payload.text, use_ai=True)
     return api_success(
         data=result,
         message="Rà soát chính tả và ngữ phong hành chính thành công",
@@ -21,12 +21,12 @@ async def analyze_spelling_endpoint(payload: SpellCheckRequest, request: Request
 
 
 @router.post("/auto-fix")
-async def auto_fix_spelling_endpoint(payload: SpellCheckRequest, request: Request):
+def auto_fix_spelling_endpoint(payload: SpellCheckRequest, request: Request):
     """Automatically fix all safe spelling, confusable, capitalization, and punctuation issues."""
     payload.validate_business_rules()
-    analysis = analyze_spelling(payload.text)
+    analysis = analyze_spelling(payload.text, use_ai=True)
     fixed_text, fixed_count = apply_safe_auto_fixes(payload.text, analysis["issues"])
-    recheck = analyze_spelling(fixed_text)
+    recheck = analyze_spelling(fixed_text, use_ai=False)
     return api_success(
         data={
             "fixed_text": fixed_text,
@@ -36,4 +36,3 @@ async def auto_fix_spelling_endpoint(payload: SpellCheckRequest, request: Reques
         message=f"Đã tự động chuẩn hóa {fixed_count} lỗi an toàn",
         request=request,
     )
-

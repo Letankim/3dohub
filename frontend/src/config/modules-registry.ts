@@ -69,7 +69,7 @@ export const HUB_MODULES_REGISTRY: HubNavModule[] = [
     label: 'Soát lỗi chính tả',
     path: '/tien-ich/check-chinh-ta',
     shortDesc:
-      'Soát lỗi chính tả gõ phím Telex/VNI, 404 cụm từ dễ nhầm lẫn, quy tắc viết hoa chức vụ & dấu câu hành chính',
+      'Soát lỗi chính tả gõ phím Telex/VNI, từ ngữ hành chính dễ nhầm lẫn, quy tắc viết hoa chức vụ & dấu câu',
     category: 'MAIN_HUB',
     targetTab: 'SPELL_CHECK_WORKSPACE',
   },

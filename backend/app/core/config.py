@@ -46,6 +46,17 @@ class Settings:
     RATE_LIMIT_GENERAL_MAX: int = 120  # 120 req/min for read/metadata endpoints
     RATE_LIMIT_COMPUTE_MAX: int = 35   # 35 req/min for heavy normalization/docx endpoints
 
+    # Backend-only Spell Check Engine API Configuration (Environment-driven)
+    GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "").strip()
+    GROQ_MODELS: list[str] = [
+        m.strip()
+        for m in os.environ.get(
+            "GROQ_MODELS",
+            "openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b",
+        ).split(",")
+        if m.strip()
+    ]
+
 
 settings = Settings()
 

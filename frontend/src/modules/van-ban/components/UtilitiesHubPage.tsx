@@ -250,10 +250,10 @@ export const UtilitiesHubPage: React.FC<UtilitiesHubPageProps> = ({
       title: 'Soát lỗi chính tả & ngữ phong',
       category: 'Tiện ích hành chính & soạn thảo',
       description:
-        'Rà soát lỗi gõ phím Telex/VNI, 404 cụm từ dễ nhầm lẫn trong hành chính, quy tắc viết hoa chức danh tổ chức và dấu câu theo NĐ 30/2020.',
+        'Rà soát chính tả, lỗi gõ phím Telex/VNI, từ ngữ hành chính dễ nhầm lẫn, quy tắc viết hoa chức danh tổ chức và dấu câu theo NĐ 30/2020.',
       features: [
-        'Phát hiện sai sót 4 tầng ngay tức thì (gõ phím, từ dễ nhầm, viết hoa, dấu câu)',
-        'Chống báo lỗi giả với mã văn bản, ngày tháng và số hiệu hành chính',
+        'Phát hiện lỗi chính tả, từ dùng sai ngữ cảnh, viết hoa và dấu câu',
+        'Giữ nguyên các mã văn bản, ngày tháng và số hiệu hành chính hợp lệ',
         'Sửa lỗi từng cụm từ hoặc tự động chuẩn hóa toàn bộ chỉ với 1 chạm',
       ],
       badge: 'Mới',

@@ -1,4 +1,4 @@
-"""In-house 4-layer Vietnamese Administrative Spell Check & Style Engine (Backend)."""
+"""Hybrid 4-layer Vietnamese Administrative Spell Check & Style Engine (Backend)."""
 
 import difflib
 import json
@@ -7,6 +7,7 @@ import re
 import time
 import unicodedata
 from typing import Any, Optional
+from app.modules.spell_check.groq_client import query_groq_spell_issues
 
 _DATASET_PATH = os.path.join(os.path.dirname(__file__), "data", "spell_dataset.json")
 _CACHE: Optional[dict[str, Any]] = None
@@ -24,10 +25,12 @@ ADMIN_CAPITALIZATION = [
 ]
 
 _WORD_RX = re.compile(r"[A-Za-zÀ-ỹĐđ]+")
-_EXTRA_SAFE_PATTERN_STRS = [
-    r"\[\^\d+\]",          # markdown footnote [^1]
-    r"\[[^\]]+\]",         # template placeholder [Họ và tên]
-]
+_EXTRA_SAFE_PATTERN_STRS = [r"\[\^\d+\]", r"\[[^\]]+\]"]
+_NEVER_FLAG_PHRASES = {
+    "cộng hòa xã hội chủ nghĩa việt nam",
+    "độc lập - tự do - hạnh phúc",
+    "đảng cộng sản việt nam",
+}
 
 
 def _unaccent(s: str) -> str:
@@ -58,13 +61,11 @@ def _load_resources() -> dict[str, Any]:
         confusable_compiled.append((re.compile(esc, re.IGNORECASE), c))
 
     lexicon_set = set(raw.get("lexicon", []))
-    # Add valid uppercase/common monosyllables and digits/roman prefixes safely
     lexicon_set.update({"ok", "email", "file", "pdf", "word", "excel", "online", "web", "app", "api", "vip"})
 
     unaccent_map: dict[str, list[str]] = {}
     for w in lexicon_set:
-        ua = _unaccent(w)
-        unaccent_map.setdefault(ua, []).append(w)
+        unaccent_map.setdefault(_unaccent(w), []).append(w)
 
     _CACHE = {
         "confusable": confusable_compiled,
@@ -85,13 +86,9 @@ def _preserve_case(orig: str, repl: str) -> str:
     return repl
 
 
-def _is_word_char(ch: str) -> bool:
-    return ch.isalnum()
-
-
 def _is_boundary(text: str, start: int, end: int) -> bool:
-    prev_ok = start == 0 or not _is_word_char(text[start - 1])
-    next_ok = end >= len(text) or not _is_word_char(text[end])
+    prev_ok = start == 0 or not text[start - 1].isalnum()
+    next_ok = end >= len(text) or not text[end].isalnum()
     return prev_ok and next_ok
 
 
@@ -106,8 +103,72 @@ def _snippet(text: str, start: int, end: int) -> str:
     return re.sub(r"\s+", " ", f"{b}[{m}]{a}").strip()
 
 
-def analyze_spelling(text: str) -> dict[str, Any]:
-    """Run 4-layer Vietnamese administrative spelling and style analysis."""
+def _merge_ai_issues(
+    text: str,
+    issues: list[dict[str, Any]],
+    protected_ranges: list[tuple[int, int]],
+    seq_start: int,
+) -> None:
+    """Query backend Groq rotation service and ground verified issues onto exact character spans."""
+    ai_items = query_groq_spell_issues(text)
+    if not ai_items:
+        return
+
+    cat_map = {
+        "SPELLING": ("SPELLING", "Chính tả", "error"),
+        "CONFUSABLE": ("CONFUSABLE", "Ngữ cảnh từ vựng", "warning"),
+        "CAPITALIZATION": ("CAPITALIZATION", "Viết hoa thể thức", "warning"),
+        "PUNCTUATION": ("PUNCTUATION", "Dấu câu", "info"),
+    }
+    used_spans = {(i["startIndex"], i["endIndex"]) for i in issues}
+    seq = seq_start
+
+    for item in ai_items:
+        orig = str(item.get("original") or "").strip()
+        repl = str(item.get("replacement") or "").strip()
+        reason = str(item.get("reason") or "").strip()
+        raw_cat = str(item.get("category") or "SPELLING").upper()
+
+        if not orig or not repl or orig == repl:
+            continue
+        if orig.lower() in _NEVER_FLAG_PHRASES or orig.isupper():
+            continue
+
+        cat, cat_label, sev = cat_map.get(raw_cat, ("SPELLING", "Chính tả", "warning"))
+        cursor = 0
+        while True:
+            idx = text.find(orig, cursor)
+            if idx == -1:
+                break
+            s, e = idx, idx + len(orig)
+            cursor = e
+            if _in_protected(s, e, protected_ranges):
+                continue
+            if len(orig) >= 2 and orig[0].isalnum() and orig[-1].isalnum() and not _is_boundary(text, s, e):
+                continue
+            if any(max(s, u0) < min(e, u1) for u0, u1 in used_spans):
+                continue
+
+            used_spans.add((s, e))
+            issues.append({
+                "id": f"ai_{seq}",
+                "startIndex": s,
+                "endIndex": e,
+                "original": orig,
+                "replacement": repl,
+                "category": cat,
+                "categoryLabel": cat_label,
+                "severity": sev,
+                "message": reason or f'Đề xuất sửa thành "{repl}"',
+                "context": _snippet(text, s, e),
+                "ruleId": f"CONTEXT_{cat}",
+                "isSafeAutoFix": True,
+            })
+            seq += 1
+
+
+def analyze_spelling(text: str, use_ai: bool = True) -> dict[str, Any]:
+    """Run hybrid rule-based + Groq model-rotation Vietnamese administrative spell check."""
     t0 = time.perf_counter()
     if not text or not text.strip():
         return {
@@ -155,53 +216,58 @@ def analyze_spelling(text: str) -> dict[str, Any]:
             })
             seq += 1
 
-    # Layer 2: Confusable Administrative Phrases (406 entries)
+    # Layer 2: Confusable Phrases (with already-correct prefix guard)
     for rx, meta in res["confusable"]:
+        w_low = meta["wrong"].lower()
+        c_low = meta["correct"].lower()
         for m in rx.finditer(text):
             s, e = m.start(), m.end()
-            if _is_boundary(text, s, e) and not _in_protected(s, e, protected_ranges):
-                orig = m.group(0)
-                repl = _preserve_case(orig, meta["correct"])
-                issues.append({
-                    "id": f"confuse_{seq}", "startIndex": s, "endIndex": e,
-                    "original": orig, "replacement": repl,
-                    "category": "CONFUSABLE", "categoryLabel": "Ngữ cảnh từ vựng",
-                    "severity": meta.get("severity", "warning"),
-                    "message": meta.get("description") or f'Từ ngữ chuẩn mực là "{meta["correct"]}"',
-                    "context": _snippet(text, s, e), "ruleId": f"CONFUSE_{meta['wrong']}",
-                    "isSafeAutoFix": True,
-                })
-                seq += 1
+            if not _is_boundary(text, s, e) or _in_protected(s, e, protected_ranges):
+                continue
+            if w_low in c_low:
+                idx = c_low.find(w_low)
+                expanded = text[max(0, s - idx) : s - idx + len(meta["correct"])]
+                if expanded.lower() == c_low:
+                    continue
+            orig = m.group(0)
+            repl = _preserve_case(orig, meta["correct"])
+            issues.append({
+                "id": f"confuse_{seq}", "startIndex": s, "endIndex": e,
+                "original": orig, "replacement": repl,
+                "category": "CONFUSABLE", "categoryLabel": "Ngữ cảnh từ vựng",
+                "severity": meta.get("severity", "warning"),
+                "message": meta.get("description") or f'Từ ngữ chuẩn mực là "{meta["correct"]}"',
+                "context": _snippet(text, s, e), "ruleId": f"CONFUSE_{meta['wrong']}",
+                "isSafeAutoFix": True,
+            })
+            seq += 1
 
-    # Layer 3: Telex/VNI typos & Syllable lexicon check
-    typo_map = res["typo_map"]
-    lexicon = res["lexicon"]
-    unaccent_map = res["unaccent_map"]
+    # Layer 3: Telex/VNI typos & Syllable lexicon check (NFC-safe)
+    typo_map, lexicon, unaccent_map = res["typo_map"], res["lexicon"], res["unaccent_map"]
     for m in _WORD_RX.finditer(text):
         word = m.group(0)
         s, e = m.start(), m.end()
         if _in_protected(s, e, protected_ranges):
             continue
-        lower = word.lower()
-        if lower in typo_map:
-            repl = _preserve_case(word, typo_map[lower])
+        lower_nfc = unicodedata.normalize("NFC", word).lower()
+        if lower_nfc in typo_map:
+            repl = _preserve_case(word, typo_map[lower_nfc])
             issues.append({
                 "id": f"typo_{seq}", "startIndex": s, "endIndex": e,
                 "original": word, "replacement": repl,
                 "category": "SPELLING", "categoryLabel": "Lỗi gõ phím",
                 "severity": "error", "message": f'Lỗi gõ phím dính dấu: "{word}" nên viết là "{repl}"',
-                "context": _snippet(text, s, e), "ruleId": f"TYPO_{lower}",
+                "context": _snippet(text, s, e), "ruleId": f"TYPO_{lower_nfc}",
                 "isSafeAutoFix": True,
             })
             seq += 1
-        elif word.islower() and len(word) >= 2 and lower not in lexicon:
-            # Fuzzy match closest unaccented syllable
-            ua = _unaccent(lower)
+        elif word.islower() and len(word) >= 2 and lower_nfc not in lexicon:
+            ua = _unaccent(lower_nfc)
             cands = unaccent_map.get(ua)
             if not cands:
-                near_keys = difflib.get_close_matches(ua, res["unaccent_keys"], n=1, cutoff=0.75)
-                if near_keys:
-                    cands = unaccent_map.get(near_keys[0])
+                near = difflib.get_close_matches(ua, res["unaccent_keys"], n=1, cutoff=0.75)
+                if near:
+                    cands = unaccent_map.get(near[0])
             if cands:
                 sug = cands[0]
                 issues.append({
@@ -214,12 +280,17 @@ def analyze_spelling(text: str) -> dict[str, Any]:
                 })
                 seq += 1
 
-    # Layer 4: Administrative Capitalization Rules
+    # Layer 4: Administrative Capitalization Rules (ignoring ALL-CAPS official headers)
     for rx, correct, label in ADMIN_CAPITALIZATION:
         for m in rx.finditer(text):
             orig = m.group(0)
             s, e = m.start(), m.end()
-            if orig != correct and _is_boundary(text, s, e) and not _in_protected(s, e, protected_ranges):
+            if (
+                orig != correct
+                and not orig.isupper()
+                and _is_boundary(text, s, e)
+                and not _in_protected(s, e, protected_ranges)
+            ):
                 issues.append({
                     "id": f"cap_{seq}", "startIndex": s, "endIndex": e,
                     "original": orig, "replacement": correct,
@@ -229,6 +300,10 @@ def analyze_spelling(text: str) -> dict[str, Any]:
                     "isSafeAutoFix": True,
                 })
                 seq += 1
+
+    # Layer 5: Backend Contextual Analysis via Groq Multi-Model Rotation
+    if use_ai:
+        _merge_ai_issues(text, issues, protected_ranges, seq)
 
     # Deduplicate overlapping spans (prefer earlier start, then longer match)
     issues.sort(key=lambda x: (x["startIndex"], -(x["endIndex"] - x["startIndex"])))
@@ -240,8 +315,6 @@ def analyze_spelling(text: str) -> dict[str, Any]:
             last_end = iss["endIndex"]
 
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
-    words_count = len(text.split())
-
     return {
         "issues": deduped,
         "stats": {
@@ -250,7 +323,7 @@ def analyze_spelling(text: str) -> dict[str, Any]:
             "confusable": sum(1 for i in deduped if i["category"] == "CONFUSABLE"),
             "capitalization": sum(1 for i in deduped if i["category"] == "CAPITALIZATION"),
             "punctuation": sum(1 for i in deduped if i["category"] == "PUNCTUATION"),
-            "wordsCount": words_count,
+            "wordsCount": len(text.split()),
             "charsCount": len(text),
             "executionMs": elapsed_ms,
         },
@@ -266,4 +339,3 @@ def apply_safe_auto_fixes(text: str, issues: list[dict[str, Any]]) -> tuple[str,
         if 0 <= s <= e <= len(updated):
             updated = updated[:s] + iss["replacement"] + updated[e:]
     return updated, len(safe)
-

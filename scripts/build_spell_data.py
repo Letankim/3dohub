@@ -219,11 +219,18 @@ def build_backend_dataset():
     conf_entries = []
     seen = set()
     for wrong, val in conf_raw.items():
-        seen.add(wrong.lower())
+        repl = val.get("replacement", "")
+        desc = val.get("description", "")
+        w_low = wrong.lower().strip()
+        r_low = repl.lower().strip()
+        # Exclude truncated prefix/suffix heuristics (e.g. 'cộng hòa xã hội chủ nghĩa việt' -> '... việt nam')
+        if r_low.startswith(w_low + " ") or r_low.endswith(" " + w_low):
+            continue
+        seen.add(w_low)
         conf_entries.append({
             "wrong": wrong,
-            "correct": val.get("replacement", ""),
-            "description": val.get("description", ""),
+            "correct": repl,
+            "description": desc,
             "category": val.get("category", "spelling"),
             "severity": val.get("severity", "warning"),
         })
@@ -258,6 +265,19 @@ def build_backend_dataset():
                     w = line.strip()
                     if w:
                         lexicon.add(w.lower())
+
+    # Add common dual Vietnamese tone-placement forms (oà/òa, oá/óa, uý/úy, uỷ/ủy, oè/òe)
+    tone_swaps = [
+        ("òa", "oà"), ("óa", "oá"), ("ỏa", "oả"), ("õa", "oã"), ("ọa", "oạ"),
+        ("òe", "oè"), ("óe", "oé"), ("ỏe", "oẻ"), ("õe", "oẽ"), ("ọe", "oẹ"),
+        ("úy", "uý"), ("ùy", "uỳ"), ("ủy", "uỷ"), ("ũy", "uỹ"), ("ụy", "uỵ"),
+    ]
+    for w in list(lexicon):
+        for a, b in tone_swaps:
+            if a in w:
+                lexicon.add(w.replace(a, b))
+            if b in w:
+                lexicon.add(w.replace(b, a))
 
     dataset = {
         "confusable_phrases": conf_entries,

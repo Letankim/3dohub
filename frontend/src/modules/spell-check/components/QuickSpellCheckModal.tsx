@@ -7,6 +7,7 @@ import {
   ThunderboltOutlined,
   CheckOutlined,
   CopyOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { hubApi } from '@/services/api-client';
 import { SpellCheckIssueItem, SpellCheckResultData } from '@/types/api';
@@ -55,7 +56,7 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
         setResult(res.data);
       }
     } catch {
-      message.error('Không thể kiểm tra chính tả từ máy chủ.');
+      message.error('Không thể kiểm tra chính tả lúc này. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -74,8 +75,20 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
       workingText.slice(0, iss.startIndex) +
       iss.replacement +
       workingText.slice(iss.endIndex);
+    const delta = iss.replacement.length - (iss.endIndex - iss.startIndex);
+    const remainingIssues = result.issues
+      .filter((i) => i.id !== iss.id)
+      .map((i) =>
+        i.startIndex >= iss.endIndex
+          ? { ...i, startIndex: i.startIndex + delta, endIndex: i.endIndex + delta }
+          : i
+      );
+
     setWorkingText(nextText);
-    void analyzeText(nextText);
+    setResult({
+      issues: remainingIssues,
+      stats: { ...result.stats, total: remainingIssues.length },
+    });
     message.success(`Đã sửa "${iss.original.trim() || '[khoảng trắng]'}" → "${iss.replacement || '[xóa]'}"`);
   };
 
@@ -96,7 +109,7 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
         }
       }
     } catch {
-      message.error('Không thể sửa lỗi từ máy chủ.');
+      message.error('Không thể thực hiện sửa tự động. Vui lòng thử lại.');
     } finally {
       setFixingAll(false);
     }
@@ -114,12 +127,19 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
       title={
         <Space>
           <SafetyCertificateOutlined style={{ color: '#059669' }} />
-          <span>Rà soát chính tả & ngữ phong văn bản</span>
+          <span>Rà soát chính tả & ngữ phong</span>
           <Badge count={stats.total} style={{ backgroundColor: stats.total > 0 ? '#DC2626' : '#16A34A' }} />
         </Space>
       }
       footer={
         <Space wrap>
+          <Button
+            icon={<SearchOutlined />}
+            loading={loading}
+            onClick={() => void analyzeText(workingText)}
+          >
+            Kiểm tra lại
+          </Button>
           <Button
             icon={<CopyOutlined />}
             onClick={() => {
@@ -144,7 +164,7 @@ export const QuickSpellCheckModal: React.FC<QuickSpellCheckModalProps> = ({
         </Space>
       }
     >
-      <Spin spinning={loading} tip="Đang rà soát chính tả trên máy chủ...">
+      <Spin spinning={loading} tip="Đang rà soát chính tả...">
         <div style={{ maxHeight: 420, minHeight: 160, overflowY: 'auto', paddingRight: 4 }}>
           {issues.length === 0 && !loading ? (
             <Empty
