@@ -83,6 +83,9 @@ export async function processResize(
     flipV: options.flipV,
   });
 
+  const finalW = transformedCanvas.width;
+  const finalH = transformedCanvas.height;
+
   const mime = file.type || 'image/jpeg';
   const blob = await canvasToBlob(transformedCanvas, mime, 0.92);
 
@@ -106,8 +109,8 @@ export async function processResize(
     percentReduction,
     blob,
     downloadUrl: URL.createObjectURL(blob),
-    width: targetW,
-    height: targetH,
+    width: finalW,
+    height: finalH,
     format: mime,
     isKeptOriginal: false,
   };

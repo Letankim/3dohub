@@ -21,6 +21,10 @@ import {
   ShortLinkStatsData,
   CreateShortLinkPayload,
   UpdateShortLinkPayload,
+  ExtendedTemplateItem,
+  SpellCheckResultData,
+  SpellCheckAutoFixData,
+  LegalRegulationApiItem,
 } from '@/types/api';
 import {
   getClientSessionId,
@@ -207,6 +211,41 @@ export const hubApi = {
     const res = await axiosClient.get<ApiResponse<TemplateItem[]>>('/van-ban/templates', {
       params: group ? { group } : undefined,
     });
+    return res.data;
+  },
+
+  async getExtendedTemplates(category?: string): Promise<ApiResponse<ExtendedTemplateItem[]>> {
+    const res = await axiosClient.get<ApiResponse<ExtendedTemplateItem[]>>('/van-ban/templates', {
+      params: category && category !== 'ALL' ? { catalog: 'all', category } : { catalog: 'all' },
+    });
+    return res.data;
+  },
+
+  async analyzeSpelling(text: string): Promise<ApiResponse<SpellCheckResultData>> {
+    const res = await axiosClient.post<ApiResponse<SpellCheckResultData>>('/spell-check/analyze', {
+      text,
+    });
+    return res.data;
+  },
+
+  async autoFixSpelling(text: string): Promise<ApiResponse<SpellCheckAutoFixData>> {
+    const res = await axiosClient.post<ApiResponse<SpellCheckAutoFixData>>('/spell-check/auto-fix', {
+      text,
+    });
+    return res.data;
+  },
+
+  async getLegalRegulations(
+    category?: string,
+    q?: string
+  ): Promise<ApiResponse<LegalRegulationApiItem[]>> {
+    const params: Record<string, string> = {};
+    if (category && category !== 'ALL') params.category = category;
+    if (q && q.trim()) params.q = q.trim();
+    const res = await axiosClient.get<ApiResponse<LegalRegulationApiItem[]>>(
+      '/doc-lookup/regulations',
+      { params }
+    );
     return res.data;
   },
 

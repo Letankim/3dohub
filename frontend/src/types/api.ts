@@ -274,3 +274,81 @@ export interface UpdateShortLinkPayload {
   tags?: string;
   session_id?: string;
 }
+
+export interface ExtendedTemplateItem {
+  id: string;
+  tag: string;
+  code: string;
+  name: string;
+  doc_type: string;
+  category: string;
+  categoryLabel: string;
+  categoryColor: string;
+  legal_basis: string;
+  description: string;
+  keywords: string[];
+  line_count: number;
+  is_extended: boolean;
+}
+
+export interface SpellCheckIssueItem {
+  id: string;
+  startIndex: number;
+  endIndex: number;
+  original: string;
+  replacement: string;
+  category: 'SPELLING' | 'CONFUSABLE' | 'CAPITALIZATION' | 'PUNCTUATION';
+  categoryLabel: string;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  context: string;
+  ruleId: string;
+  isSafeAutoFix: boolean;
+}
+
+export interface SpellCheckStatsData {
+  total: number;
+  spelling: number;
+  confusable: number;
+  capitalization: number;
+  punctuation: number;
+  wordsCount: number;
+  charsCount: number;
+  executionMs: number;
+}
+
+export interface SpellCheckResultData {
+  issues: SpellCheckIssueItem[];
+  stats: SpellCheckStatsData;
+}
+
+export interface SpellCheckAutoFixData {
+  fixed_text: string;
+  fixed_count: number;
+  remaining: SpellCheckResultData;
+}
+
+export interface LegalFormatRuleDetail {
+  component: string;
+  fontStyle: string;
+  fontSize: string;
+  alignment: string;
+  note: string;
+}
+
+export interface LegalRegulationApiItem {
+  id: string;
+  title: string;
+  shortTitle: string;
+  category: 'HANH_CHINH' | 'DANG' | 'THI_DUA' | 'CAND' | 'QUAN_DOI' | 'DOAN';
+  categoryLabel: string;
+  categoryColor: string;
+  documentNumber: string;
+  issuingOrgan: string;
+  effectiveDate: string;
+  summary: string;
+  formatRules: LegalFormatRuleDetail[];
+  keyProvisions: string[];
+  relatedTemplateTags: string[];
+  keywords: string[];
+}

@@ -14,6 +14,8 @@ from app.modules.hub.router import router as hub_router
 from app.modules.van_ban.router import router as van_ban_router
 from app.modules.excel_norm.router import excel_router
 from app.modules.short_link.router import router as short_link_router, redirect_short_link
+from app.modules.spell_check.router import router as spell_check_router
+from app.modules.doc_lookup.router import router as doc_lookup_router
 
 
 @asynccontextmanager
@@ -59,6 +61,8 @@ def create_app() -> FastAPI:
     app.include_router(van_ban_router, prefix=settings.API_PREFIX)
     app.include_router(excel_router, prefix=settings.API_PREFIX)
     app.include_router(short_link_router, prefix=settings.API_PREFIX)
+    app.include_router(spell_check_router, prefix=settings.API_PREFIX)
+    app.include_router(doc_lookup_router, prefix=settings.API_PREFIX)
 
     # Public Root Short Link Redirect: /s/{code}
     @app.get("/s/{code}", include_in_schema=False)

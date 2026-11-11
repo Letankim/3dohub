@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Row,
   Col,
@@ -14,8 +14,9 @@ import {
   Table,
   Empty,
   Badge,
+  Spin,
+  Divider,
   message,
-  Collapse,
 } from 'antd';
 import {
   SearchOutlined,
@@ -23,13 +24,14 @@ import {
   CopyOutlined,
   FileWordOutlined,
   CheckCircleOutlined,
-  InfoCircleOutlined,
   FieldTimeOutlined,
   EditOutlined,
+  BankOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
-import { REGULATIONS_DATA } from './data/regulations-data';
-import { LegalRegulationItem } from './types/doc-lookup';
+import { hubApi } from '@/services/api-client';
+import { LegalRegulationApiItem } from '@/types/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -52,11 +54,36 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
   onOpenEditor,
 }) => {
   const isMobile = useIsMobile();
+  const [regulations, setRegulations] = useState<LegalRegulationApiItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
+  const [selectedId, setSelectedId] = useState<string>('');
 
-  const filteredRegulations = useMemo(() => {
-    let list = REGULATIONS_DATA;
+  const fetchRegulations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await hubApi.getLegalRegulations();
+      if (res.data) {
+        setRegulations(res.data);
+        if (res.data.length > 0 && !selectedId) {
+          setSelectedId(res.data[0].id);
+        }
+      }
+    } catch {
+      message.error('Không thể tải dữ liệu văn bản từ máy chủ.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedId]);
+
+  useEffect(() => {
+    void fetchRegulations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredList = useMemo(() => {
+    let list = regulations;
     if (activeCategory !== 'ALL') {
       list = list.filter((r) => r.category === activeCategory);
     }
@@ -68,8 +95,10 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       const num = removeVietnameseTones(r.documentNumber);
       const summary = removeVietnameseTones(r.summary);
       const organ = removeVietnameseTones(r.issuingOrgan);
-      const kw = r.keywords.map(removeVietnameseTones).join(' ');
-      const comp = r.formatRules.map((f) => removeVietnameseTones(f.component)).join(' ');
+      const kw = (r.keywords || []).map(removeVietnameseTones).join(' ');
+      const comp = (r.formatRules || [])
+        .map((f) => removeVietnameseTones(`${f.component} ${f.note}`))
+        .join(' ');
       return (
         title.includes(q) ||
         num.includes(q) ||
@@ -79,12 +108,20 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
         comp.includes(q)
       );
     });
-  }, [searchText, activeCategory]);
+  }, [regulations, searchText, activeCategory]);
 
-  const handleCopyCitation = (item: LegalRegulationItem) => {
-    const text = `${item.title} (Số: ${item.documentNumber}, Cơ quan ban hành: ${item.issuingOrgan}, Ngày có hiệu lực: ${item.effectiveDate})`;
+  const activeItem = useMemo(() => {
+    return (
+      filteredList.find((r) => r.id === selectedId) ||
+      filteredList[0] ||
+      null
+    );
+  }, [filteredList, selectedId]);
+
+  const handleCopyCitation = (item: LegalRegulationApiItem) => {
+    const text = `${item.title} (Số: ${item.documentNumber}, Cơ quan ban hành: ${item.issuingOrgan}, Hiệu lực: ${item.effectiveDate})`;
     navigator.clipboard.writeText(text);
-    message.success(`Đã sao chép trích dẫn căn cứ pháp lý: ${item.documentNumber}`);
+    message.success(`Đã sao chép căn cứ pháp lý: ${item.documentNumber}`);
   };
 
   const columns = [
@@ -92,76 +129,92 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
       title: 'Thành phần thể thức',
       dataIndex: 'component',
       key: 'component',
-      width: 170,
-      render: (val: string) => <Text strong>{val}</Text>,
+      width: 175,
+      render: (val: string) => <Text strong style={{ color: '#0F172A' }}>{val}</Text>,
     },
     {
       title: 'Kiểu chữ',
       dataIndex: 'fontStyle',
       key: 'fontStyle',
-      width: 170,
+      width: 175,
     },
     {
       title: 'Cỡ chữ',
       dataIndex: 'fontSize',
       key: 'fontSize',
-      width: 100,
-      render: (val: string) => <Tag color="blue">{val}</Tag>,
+      width: 105,
+      render: (val: string) => (
+        <Tag color="blue" style={{ margin: 0, fontWeight: 600 }}>
+          {val}
+        </Tag>
+      ),
     },
     {
       title: 'Vị trí & Căn lề',
       dataIndex: 'alignment',
       key: 'alignment',
-      width: 160,
+      width: 165,
     },
     {
-      title: 'Ghi chú & Ví dụ',
+      title: 'Quy chuẩn & Ví dụ',
       dataIndex: 'note',
       key: 'note',
-      render: (val: string) => <Text type="secondary" style={{ fontSize: 12 }}>{val}</Text>,
+      render: (val: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {val}
+        </Text>
+      ),
     },
   ];
 
   return (
-    <div style={{ maxWidth: 1380, margin: '0 auto', padding: isMobile ? '8px 12px' : '16px 20px' }}>
-      {/* Top Banner */}
+    <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+      {/* Clean Enterprise Search & Header Card */}
       <Card
         size="small"
         style={{
           borderRadius: 6,
           border: '1px solid #E2E8F0',
           marginBottom: 16,
-          background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)',
+          background: '#FFFFFF',
         }}
+        styles={{ body: { padding: isMobile ? 14 : '18px 22px' } }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            marginBottom: 14,
+          }}
+        >
           <div>
             <Space align="center">
               <BookOutlined style={{ fontSize: 20, color: '#1D4ED8' }} />
-              <Title level={4} style={{ margin: 0, fontSize: isMobile ? 16 : 18, color: '#0F172A' }}>
+              <Title level={4} style={{ margin: 0, fontSize: isMobile ? 16 : 19, color: '#0F172A' }}>
                 Tra cứu thể thức & văn bản quy phạm
               </Title>
-              <Badge count={REGULATIONS_DATA.length} style={{ backgroundColor: '#1D4ED8' }} />
+              <Badge
+                count={regulations.length}
+                style={{ backgroundColor: '#1D4ED8' }}
+              />
             </Space>
             <Text type="secondary" style={{ display: 'block', fontSize: 13, marginTop: 4 }}>
-              Cơ sở dữ liệu quy chuẩn thể thức NĐ 30/2020, HD 05-HD/VPTW, NĐ 152/2025, TT 26/2019, TT 68/2023 và HD 29-HD/TWĐTN
+              Hệ thống quy chuẩn thể thức NĐ 30/2020/NĐ-CP, HD 05-HD/VPTW, NĐ 152/2025/NĐ-CP, TT 26/2019/TT-BCA, TT 68/2023/TT-BQP & HD 29-HD/TWĐTN
             </Text>
           </div>
 
           <Space wrap size="small">
             {onOpenEditor && (
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={onOpenEditor}
-              >
+              <Button icon={<EditOutlined />} onClick={onOpenEditor}>
                 Soạn văn bản
               </Button>
             )}
             {onOpenTemplatesModal && (
               <Button
                 type="primary"
-                size="small"
                 icon={<FileWordOutlined />}
                 onClick={onOpenTemplatesModal}
                 style={{ background: '#1D4ED8' }}
@@ -171,149 +224,195 @@ export const DocLookupWorkspace: React.FC<DocLookupWorkspaceProps> = ({
             )}
           </Space>
         </div>
+
+        <Input
+          size="large"
+          placeholder="Nhập số hiệu (30/2020, 05-HD/VPTW, 152/2025...) hoặc từ khóa (Quốc hiệu, dấu sao, độ mật, chữ ký...)"
+          prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
+          allowClear
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{ borderRadius: 4, marginBottom: 12 }}
+        />
+
+        <Tabs
+          activeKey={activeCategory}
+          onChange={setActiveCategory}
+          size="small"
+          style={{ marginBottom: -12 }}
+          items={[
+            { key: 'ALL', label: `Tất cả (${regulations.length})` },
+            { key: 'HANH_CHINH', label: 'Hành chính Nhà nước' },
+            { key: 'DANG', label: 'Khối Đảng' },
+            { key: 'THI_DUA', label: 'Thi đua – Khen thưởng' },
+            { key: 'CAND', label: 'Công an Nhân dân' },
+            { key: 'QUAN_DOI', label: 'Lực lượng Quân đội' },
+            { key: 'DOAN', label: 'Đoàn Thanh niên' },
+          ]}
+        />
       </Card>
 
-      {/* Search Input & Quick Specs */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={16}>
-          <Input
-            placeholder="Tìm quy định theo số hiệu (30/2020, 152/2025...), từ khóa (căn lề, phông chữ, chữ ký, độ mật)..."
-            prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
-            allowClear
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ borderRadius: 4, height: 40 }}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <Card size="small" style={{ borderRadius: 4, border: '1px solid #E2E8F0', background: '#F8FAFC' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-              <span>Lề chuẩn A4: <strong>Trên/Dưới 20-25mm · Trái 30-35mm · Phải 15-20mm</strong></span>
-            </div>
+      <Spin spinning={loading} tip="Đang tải dữ liệu văn bản quy phạm từ máy chủ...">
+        {filteredList.length === 0 && !loading ? (
+          <Card style={{ borderRadius: 6, border: '1px solid #E2E8F0' }}>
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="Không tìm thấy văn bản quy phạm nào phù hợp với từ khóa"
+              style={{ padding: '48px 0' }}
+            />
           </Card>
-        </Col>
-      </Row>
-
-      {/* Category Tabs */}
-      <Tabs
-        activeKey={activeCategory}
-        onChange={setActiveCategory}
-        size="small"
-        items={[
-          { key: 'ALL', label: `Tất cả (${REGULATIONS_DATA.length})` },
-          { key: 'HANH_CHINH', label: 'Hành chính (NĐ 30)' },
-          { key: 'DANG', label: 'Khối Đảng (HD 05)' },
-          { key: 'THI_DUA', label: 'Thi đua (NĐ 152)' },
-          { key: 'CAND', label: 'Công an (TT 26)' },
-          { key: 'QUAN_DOI', label: 'Quân đội (TT 68)' },
-          { key: 'DOAN', label: 'Đoàn TN (HD 29)' },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
-
-      {/* Regulations List */}
-      {filteredRegulations.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="Không tìm thấy văn bản quy phạm nào phù hợp với từ khóa"
-          style={{ padding: '60px 0' }}
-        />
-      ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size={16}>
-          {filteredRegulations.map((reg) => (
-            <Card
-              key={reg.id}
-              size="small"
-              style={{
-                borderRadius: 6,
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-              }}
-            >
-              {/* Card Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                <div>
-                  <Space wrap align="center">
-                    <Tag color={reg.categoryColor} style={{ fontWeight: 600 }}>
-                      {reg.categoryLabel}
-                    </Tag>
-                    <Tag color="default" style={{ fontWeight: 600 }}>
-                      {reg.documentNumber}
-                    </Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      <FieldTimeOutlined style={{ marginRight: 4 }} />
-                      Hiệu lực: {reg.effectiveDate}
-                    </Text>
-                  </Space>
-                  <Title level={5} style={{ margin: '8px 0 4px 0', fontSize: 16, color: '#0F172A' }}>
-                    {reg.title}
-                  </Title>
-                  <Paragraph type="secondary" style={{ margin: 0, fontSize: 13, color: '#475569' }}>
-                    {reg.summary}
-                  </Paragraph>
-                </div>
-
-                <Space>
-                  <Button
-                    size="small"
-                    icon={<CopyOutlined />}
-                    onClick={() => handleCopyCitation(reg)}
-                  >
-                    Sao chép căn cứ
-                  </Button>
-                </Space>
-              </div>
-
-              {/* Collapsible Format Details Table */}
-              <Collapse
-                ghost
+        ) : (
+          <Row gutter={[16, 16]}>
+            {/* Left Sidebar List of Matching Regulations */}
+            <Col xs={24} lg={8}>
+              <Card
                 size="small"
-                defaultActiveKey={['format_rules']}
-                items={[
-                  {
-                    key: 'format_rules',
-                    label: (
-                      <Space>
-                        <InfoCircleOutlined style={{ color: '#1D4ED8' }} />
-                        <span style={{ fontWeight: 600 }}>Quy cách thể thức chi tiết từng thành phần</span>
-                        <Tag color="blue">{reg.formatRules.length} thành phần</Tag>
+                title={
+                  <Space>
+                    <FileTextOutlined style={{ color: '#1D4ED8' }} />
+                    <span style={{ fontWeight: 600 }}>Danh mục quy chuẩn ({filteredList.length})</span>
+                  </Space>
+                }
+                style={{ borderRadius: 6, border: '1px solid #E2E8F0', height: '100%' }}
+                styles={{ body: { padding: 10, maxHeight: isMobile ? 320 : 620, overflowY: 'auto' } }}
+              >
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  {filteredList.map((reg) => {
+                    const isSelected = activeItem?.id === reg.id;
+                    return (
+                      <div
+                        key={reg.id}
+                        onClick={() => setSelectedId(reg.id)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #93C5FD' : '1px solid #E2E8F0',
+                          borderLeft: isSelected ? '4px solid #1D4ED8' : '1px solid #E2E8F0',
+                          backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Tag color={reg.categoryColor} style={{ margin: 0, fontWeight: 600, fontSize: 11 }}>
+                            {reg.categoryLabel}
+                          </Tag>
+                          <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>
+                            {reg.documentNumber}
+                          </Text>
+                        </div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A', lineHeight: 1.4, marginBottom: 4 }}>
+                          {reg.shortTitle}
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <BankOutlined style={{ marginRight: 4 }} />
+                          {reg.issuingOrgan} · {reg.effectiveDate}
+                        </Text>
+                      </div>
+                    );
+                  })}
+                </Space>
+              </Card>
+            </Col>
+
+            {/* Right Detail Panel */}
+            <Col xs={24} lg={16}>
+              {activeItem && (
+                <Card
+                  style={{ borderRadius: 6, border: '1px solid #E2E8F0' }}
+                  styles={{ body: { padding: isMobile ? 14 : 22 } }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      flexWrap: 'wrap',
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 240 }}>
+                      <Space wrap style={{ marginBottom: 8 }}>
+                        <Tag color={activeItem.categoryColor} style={{ fontWeight: 600, margin: 0 }}>
+                          {activeItem.categoryLabel}
+                        </Tag>
+                        <Tag color="default" style={{ fontWeight: 600, margin: 0 }}>
+                          Số: {activeItem.documentNumber}
+                        </Tag>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <FieldTimeOutlined style={{ marginRight: 4 }} />
+                          Hiệu lực: {activeItem.effectiveDate}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          <BankOutlined style={{ marginRight: 4 }} />
+                          {activeItem.issuingOrgan}
+                        </Text>
                       </Space>
-                    ),
-                    children: (
-                      <Table
-                        columns={columns}
-                        dataSource={reg.formatRules.map((f, idx) => ({ ...f, key: `${reg.id}_${idx}` }))}
-                        pagination={false}
-                        size="small"
-                        scroll={{ x: 750 }}
-                        style={{ border: '1px solid #F1F5F9', borderRadius: 4 }}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'key_provisions',
-                    label: (
-                      <Space>
-                        <CheckCircleOutlined style={{ color: '#16A34A' }} />
-                        <span style={{ fontWeight: 600 }}>Quy định trọng tâm cần lưu ý</span>
-                      </Space>
-                    ),
-                    children: (
-                      <ul style={{ paddingLeft: 20, margin: 0 }}>
-                        {reg.keyProvisions.map((prov, i) => (
-                          <li key={i} style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>
+
+                      <Title level={4} style={{ margin: '0 0 8px 0', color: '#0F172A', lineHeight: 1.35 }}>
+                        {activeItem.title}
+                      </Title>
+                      <Paragraph style={{ margin: 0, color: '#475569', fontSize: 14 }}>
+                        {activeItem.summary}
+                      </Paragraph>
+                    </div>
+
+                    <Button
+                      icon={<CopyOutlined />}
+                      onClick={() => handleCopyCitation(activeItem)}
+                      style={{ borderRadius: 4 }}
+                    >
+                      Sao chép căn cứ
+                    </Button>
+                  </div>
+
+                  <Divider style={{ margin: '16px 0' }} />
+
+                  {/* Key Provisions */}
+                  <div style={{ marginBottom: 18 }}>
+                    <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 8 }}>
+                      <CheckCircleOutlined style={{ color: '#16A34A', marginRight: 6 }} />
+                      Quy định trọng tâm cần tuân thủ
+                    </Text>
+                    <div
+                      style={{
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 6,
+                        padding: '12px 16px',
+                      }}
+                    >
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {activeItem.keyProvisions.map((prov, idx) => (
+                          <li key={idx} style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>
                             {prov}
                           </li>
                         ))}
                       </ul>
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-          ))}
-        </Space>
-      )}
+                    </div>
+                  </div>
+
+                  {/* Format Table */}
+                  <div>
+                    <Text strong style={{ display: 'block', fontSize: 14, color: '#0F172A', marginBottom: 10 }}>
+                      <FileTextOutlined style={{ color: '#1D4ED8', marginRight: 6 }} />
+                      Bảng thông số thể thức từng thành phần
+                    </Text>
+                    <Table
+                      columns={columns}
+                      dataSource={activeItem.formatRules.map((f, idx) => ({ ...f, key: idx }))}
+                      pagination={false}
+                      size="small"
+                      bordered
+                      scroll={{ x: 680 }}
+                    />
+                  </div>
+                </Card>
+              )}
+            </Col>
+          </Row>
+        )}
+      </Spin>
     </div>
   );
 };

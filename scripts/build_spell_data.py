@@ -208,7 +208,69 @@ export const PROTECTED_PATTERNS: ProtectedPattern[] = {json.dumps([
     print("Generated rules & patterns successfully!")
 
 
+def build_backend_dataset():
+    backend_dir = "backend/app/modules/spell_check/data"
+    os.makedirs(backend_dir, exist_ok=True)
+
+    # Load confusables (reusing logic)
+    fp_conf = os.path.join(SPELL_DATA_DIR, "confusable_phrases.json")
+    with open(fp_conf, "r", encoding="utf-8") as f:
+        conf_raw = json.load(f)
+    conf_entries = []
+    seen = set()
+    for wrong, val in conf_raw.items():
+        seen.add(wrong.lower())
+        conf_entries.append({
+            "wrong": wrong,
+            "correct": val.get("replacement", ""),
+            "description": val.get("description", ""),
+            "category": val.get("category", "spelling"),
+            "severity": val.get("severity", "warning"),
+        })
+    extra = [
+        {"wrong": "bàng giao", "correct": "bàn giao", "description": "Từ ngữ chuẩn mực trong văn bản hành chính là 'bàn giao'.", "category": "spelling", "severity": "error"},
+        {"wrong": "dành quyền", "correct": "giành quyền", "description": "Dùng 'giành quyền' (đạt được quyền hạn bằng nỗ lực), không viết 'dành quyền'.", "category": "spelling", "severity": "error"},
+        {"wrong": "đọc giả", "correct": "độc giả", "description": "Từ Hán-Việt chuẩn mực là 'độc giả', không viết 'đọc giả'.", "category": "spelling", "severity": "warning"},
+        {"wrong": "xúc tích", "correct": "súc tích", "description": "Từ chuẩn mực là 'súc tích' (cô đọng, ngắn gọn nhưng đủ ý).", "category": "spelling", "severity": "warning"},
+        {"wrong": "sáng lạng", "correct": "xán lạn", "description": "Từ Hán-Việt chuẩn mực là 'xán lạn' (rực rỡ, tốt đẹp).", "category": "spelling", "severity": "warning"},
+    ]
+    for ex in extra:
+        if ex["wrong"].lower() not in seen:
+            conf_entries.append(ex)
+            seen.add(ex["wrong"].lower())
+
+    fp_typo = os.path.join(SPELL_DATA_DIR, "typo_map.json")
+    with open(fp_typo, "r", encoding="utf-8") as f:
+        typo_raw = json.load(f)
+    typo_map = {k: v["suggestions"][0] for k, v in typo_raw.items() if v.get("suggestions")}
+
+    fp_prot = os.path.join(SPELL_DATA_DIR, "protected_patterns.json")
+    with open(fp_prot, "r", encoding="utf-8") as f:
+        prot_patterns = json.load(f).get("patterns", [])
+
+    # Merge .dic wordlists for fast backend verification
+    lexicon = set()
+    for dic_name in ["vi_core.dic", "vi_admin_legal.dic", "vi_abbreviations.dic", "vi_proper_names.dic", "vi_foreign_terms.dic"]:
+        dp = os.path.join(SPELL_DATA_DIR, dic_name)
+        if os.path.exists(dp):
+            with open(dp, "r", encoding="utf-8") as df:
+                for line in df:
+                    w = line.strip()
+                    if w:
+                        lexicon.add(w.lower())
+
+    dataset = {
+        "confusable_phrases": conf_entries,
+        "typo_map": typo_map,
+        "protected_patterns": [{"name": p["name"], "regex": p["regex"]} for p in prot_patterns],
+        "lexicon": sorted(lexicon),
+    }
+
+    out_path = os.path.join(backend_dir, "spell_dataset.json")
+    with open(out_path, "w", encoding="utf-8") as out_f:
+        json.dump(dataset, out_f, ensure_ascii=False)
+    print(f"Generated backend spell_dataset.json ({len(conf_entries)} confusables, {len(typo_map)} typos, {len(lexicon)} lexicon terms)!")
+
+
 if __name__ == "__main__":
-    build_confusable_phrases()
-    build_typo_map()
-    build_rules()
+    build_backend_dataset()

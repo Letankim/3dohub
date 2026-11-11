@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Card, Tabs } from 'antd';
+import '@fancyapps/ui/dist/fancybox/fancybox.css';
 import {
   CompressOutlined,
   SwapOutlined,

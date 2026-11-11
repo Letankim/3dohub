@@ -3,14 +3,14 @@
 import React from 'react';
 import { Popover, Button, Tag, Typography, Space } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
-import { SpellIssue } from '../types/spell-check';
+import { SpellCheckIssueItem } from '@/types/api';
 
 const { Text } = Typography;
 
 interface HighlightedTextViewerProps {
   text: string;
-  issues: SpellIssue[];
-  onFixIssue: (issue: SpellIssue) => void;
+  issues: SpellCheckIssueItem[];
+  onFixIssue: (issue: SpellCheckIssueItem) => void;
 }
 
 export const HighlightedTextViewer: React.FC<HighlightedTextViewerProps> = ({
@@ -26,7 +26,7 @@ export const HighlightedTextViewer: React.FC<HighlightedTextViewerProps> = ({
     );
   }
 
-  const getUnderlineStyle = (category: SpellIssue['category']) => {
+  const getUnderlineStyle = (category: SpellCheckIssueItem['category']) => {
     switch (category) {
       case 'SPELLING':
         return {

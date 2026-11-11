@@ -14,7 +14,6 @@ from app.modules.van_ban.docx_parser import extract_lines_from_docx_bytes
 SOURCE_META = "mau-theo/templates/templates_metadata.json"
 SOURCE_DIR = "mau-theo/templates"
 OUT_BACKEND = "backend/app/modules/van_ban/extended_templates_catalog.json"
-OUT_FRONTEND = "frontend/src/modules/van-ban/data/templates-extended.json"
 
 CATEGORY_MAP = {
     "Văn bản Đảng": {
@@ -164,12 +163,8 @@ def build_catalog():
     with open(OUT_BACKEND, "w", encoding="utf-8") as bf:
         json.dump(catalog, bf, ensure_ascii=False, indent=2)
 
-    os.makedirs(os.path.dirname(OUT_FRONTEND), exist_ok=True)
-    with open(OUT_FRONTEND, "w", encoding="utf-8") as ff:
-        json.dump(catalog, ff, ensure_ascii=False, indent=2)
-
     print(f"Generated {len(catalog)} extended templates!")
-    print(f"Saved to: {OUT_BACKEND} & {OUT_FRONTEND}")
+    print(f"Saved to: {OUT_BACKEND}")
 
 
 if __name__ == "__main__":

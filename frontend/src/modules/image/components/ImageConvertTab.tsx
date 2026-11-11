@@ -1,24 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button, Card, ColorPicker, Radio, Segmented, Slider, Space, Typography, message } from 'antd';
+import React, { useMemo, useState } from 'react';
+import { Button, ColorPicker, Radio, Slider, Space, Typography, message } from 'antd';
 import {
   SwapOutlined,
-  UploadOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import { FileDropzone } from '@/components/common/FileDropzone';
 import { useImageQueue } from '../hooks/useImageQueue';
+import { useLiveImagePreview } from '../hooks/useLiveImagePreview';
 import { ConvertFormat, ConvertOptions } from '../types/image';
 import { processConvert } from '../services/image-convert';
-import { ResultBanner, ResultTable } from './ImageCommon';
-import { formatBytes } from '../services/image-decode';
-import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
+import { LiveImageStage } from './LiveImageStage';
 
 const { Text } = Typography;
 
 export const ImageConvertTab: React.FC = () => {
-  const isMobile = useIsMobile();
   const {
     items,
     results,
@@ -34,20 +31,25 @@ export const ImageConvertTab: React.FC = () => {
   const [quality, setQuality] = useState<number>(0.9);
   const [bgColor, setBgColor] = useState<string>('#FFFFFF');
 
-  const handleRunConvert = async () => {
-    if (items.length === 0) return;
-    setProcessing(true);
-    const newResults = [];
-
-    const options: ConvertOptions = {
+  const convertOpts = useMemo<ConvertOptions>(
+    () => ({
       targetFormat,
       quality,
       backgroundColor: bgColor,
-    };
+    }),
+    [targetFormat, quality, bgColor]
+  );
 
+  const { activeId, setActiveId, livePreview, previewLoading } =
+    useLiveImagePreview(items, convertOpts, processConvert);
+
+  const handleRunBatch = async () => {
+    if (items.length === 0) return;
+    setProcessing(true);
+    const newResults = [];
     try {
       for (const item of items) {
-        const res = await processConvert(item.file, options);
+        const res = await processConvert(item.file, convertOpts);
         newResults.push(res);
       }
       setResults(newResults);
@@ -71,154 +73,88 @@ export const ImageConvertTab: React.FC = () => {
   }
 
   return (
-    <div>
-      {results.length > 0 && (
-        <ResultBanner
-          results={results}
-          onReset={() => {
-            setResults([]);
-          }}
-          title="Đã đổi định dạng"
-        />
-      )}
-
-      {/* Cấu hình định dạng đích */}
-      <Card
-        size="small"
-        style={{ marginBottom: 16, borderRadius: 6 }}
-        bodyStyle={{ padding: isMobile ? 12 : 16 }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Định dạng đích</div>
-        <Radio.Group
-          value={targetFormat}
-          onChange={(e) => setTargetFormat(e.target.value)}
-          style={{ marginBottom: 12 }}
-        >
-          <Space direction={isMobile ? 'vertical' : 'horizontal'}>
-            <Radio value="image/jpeg">JPG / JPEG (Phổ biến)</Radio>
-            <Radio value="image/png">PNG (Trong suốt)</Radio>
-            <Radio value="image/webp">WebP (Siêu nhẹ)</Radio>
-          </Space>
-        </Radio.Group>
-
-        {targetFormat !== 'image/png' && (
-          <div style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 13, marginRight: 8 }}>
-              Chất lượng: <strong>{Math.round(quality * 100)}%</strong>
-            </Text>
-            <Slider
-              min={60}
-              max={100}
-              value={Math.round(quality * 100)}
-              onChange={(v) => setQuality(v / 100)}
-              style={{ maxWidth: 300 }}
-            />
+    <LiveImageStage
+      items={items}
+      activeId={activeId}
+      onSelectActive={setActiveId}
+      onRemoveItem={removeFile}
+      livePreview={livePreview}
+      previewLoading={previewLoading}
+      results={results}
+      onResetResults={() => setResults([])}
+      resultTitle="Đã đổi định dạng"
+      controlsSlot={
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: '#0F172A' }}>
+            Định dạng đích
           </div>
-        )}
+          <Radio.Group
+            value={targetFormat}
+            onChange={(e) => setTargetFormat(e.target.value)}
+            style={{ width: '100%' }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Radio value="image/jpeg">JPG / JPEG (Phổ biến)</Radio>
+              <Radio value="image/png">PNG (Nền trong suốt)</Radio>
+              <Radio value="image/webp">WebP (Siêu nhẹ)</Radio>
+            </Space>
+          </Radio.Group>
 
-        {targetFormat === 'image/jpeg' && (
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 13 }}>Màu nền thay thế vùng trong suốt:</Text>
-            <ColorPicker
-              value={bgColor}
-              onChangeComplete={(color) => setBgColor(color.toHexString())}
-              size="small"
-            />
-          </div>
-        )}
-      </Card>
-
-      {/* Thanh hành động */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 16,
-        }}
-      >
-        <Space>
-          <FileDropzone
-            variant="inline"
-            accept="image/*"
-            multiple
-            label="Thêm ảnh"
-            onFilesSelected={addFiles}
-          />
-          <Button icon={<DeleteOutlined />} onClick={clearAll}>
-            Xóa hết
-          </Button>
-        </Space>
-
-        <Button
-          type="primary"
-          icon={<SwapOutlined />}
-          loading={processing}
-          onClick={handleRunConvert}
-          block={isMobile}
-          style={{ background: '#1D4ED8', minWidth: 140 }}
-        >
-          Đổi định dạng
-        </Button>
-      </div>
-
-      {/* Hiển thị kết quả hoặc danh sách file */}
-      {results.length > 0 ? (
-        <ResultTable results={results} originalFiles={items} />
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile
-              ? 'repeat(auto-fill, minmax(96px, 1fr))'
-              : 'repeat(auto-fill, minmax(130px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {items.map((it) => (
-            <Card
-              key={it.id}
-              size="small"
-              hoverable
-              style={{ borderRadius: 6, overflow: 'hidden', textAlign: 'center' }}
-              bodyStyle={{ padding: 8 }}
-              cover={
-                <div style={{ height: 90, background: '#F1F5F9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img
-                    src={it.previewUrl}
-                    alt={it.name}
-                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              }
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  marginBottom: 4,
-                }}
-              >
-                {it.name}
-              </div>
-              <div style={{ fontSize: 10, color: '#64748B', marginBottom: 6 }}>
-                {formatBytes(it.size)}
-              </div>
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => removeFile(it.id)}
+          {targetFormat !== 'image/png' && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #E2E8F0' }}>
+              <Text style={{ fontSize: 13 }}>
+                Chất lượng xuất: <strong>{Math.round(quality * 100)}%</strong>
+              </Text>
+              <Slider
+                min={60}
+                max={100}
+                value={Math.round(quality * 100)}
+                onChange={(v) => setQuality(v / 100)}
               />
-            </Card>
-          ))}
+            </div>
+          )}
+
+          {targetFormat === 'image/jpeg' && (
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 13 }}>Màu nền (nếu ảnh trong suốt):</Text>
+              <ColorPicker
+                value={bgColor}
+                onChangeComplete={(color) => setBgColor(color.toHexString())}
+                size="small"
+              />
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      }
+      actionsSlot={
+        <Space direction="vertical" style={{ width: '100%' }} size={10}>
+          <Button
+            type="primary"
+            icon={<SwapOutlined />}
+            loading={processing}
+            onClick={handleRunBatch}
+            block
+            size="large"
+            style={{ background: '#1D4ED8' }}
+          >
+            {items.length > 1
+              ? `Chuyển đổi tất cả (${items.length} ảnh)`
+              : 'Áp dụng & xuất file'}
+          </Button>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+            <FileDropzone
+              variant="inline"
+              accept="image/*"
+              multiple
+              label="Thêm ảnh"
+              onFilesSelected={addFiles}
+            />
+            <Button icon={<DeleteOutlined />} onClick={clearAll} danger>
+              Xóa hết
+            </Button>
+          </Space>
+        </Space>
+      }
+    />
   );
 };
-

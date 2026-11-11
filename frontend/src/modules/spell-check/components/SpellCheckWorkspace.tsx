@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Row,
   Col,
@@ -15,6 +15,7 @@ import {
   message,
   Tabs,
   Segmented,
+  Spin,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -27,10 +28,11 @@ import {
   EditOutlined,
   EyeOutlined,
   SafetyCertificateOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
-import { runSpellCheck, applySingleFix, applySafeAutoFixes } from '../services/spell-engine';
-import { SpellIssue, IssueCategory } from '../types/spell-check';
+import { hubApi } from '@/services/api-client';
+import { SpellCheckIssueItem, SpellCheckResultData } from '@/types/api';
 import { HighlightedTextViewer } from './HighlightedTextViewer';
 
 const { Title, Text, Paragraph } = Typography;
@@ -55,14 +57,64 @@ TM. BAN THƯỜNG VỤ
 BÍ THƯ
 [Họ và tên người ký]`;
 
+const EMPTY_RESULT: SpellCheckResultData = {
+  issues: [],
+  stats: {
+    total: 0,
+    spelling: 0,
+    confusable: 0,
+    capitalization: 0,
+    punctuation: 0,
+    wordsCount: 0,
+    charsCount: 0,
+    executionMs: 0,
+  },
+};
+
 export const SpellCheckWorkspace: React.FC = () => {
   const isMobile = useIsMobile();
   const [text, setText] = useState<string>(SAMPLE_ADMIN_TEXT);
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'HIGHLIGHT' | 'EDIT'>('HIGHLIGHT');
+  const [checking, setChecking] = useState<boolean>(false);
+  const [fixingAll, setFixingAll] = useState<boolean>(false);
+  const [checkResult, setCheckResult] = useState<SpellCheckResultData>(EMPTY_RESULT);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const reqCounterRef = useRef<number>(0);
 
-  // Compute spell check result
-  const checkResult = useMemo(() => runSpellCheck(text), [text]);
+  const runBackendAnalysis = useCallback(async (targetText: string) => {
+    const reqId = ++reqCounterRef.current;
+    if (!targetText || !targetText.trim()) {
+      setCheckResult(EMPTY_RESULT);
+      return;
+    }
+    setChecking(true);
+    try {
+      const res = await hubApi.analyzeSpelling(targetText);
+      if (reqId === reqCounterRef.current && res.data) {
+        setCheckResult(res.data);
+      }
+    } catch {
+      if (reqId === reqCounterRef.current) {
+        message.error('Không thể kết nối máy chủ kiểm tra chính tả.');
+      }
+    } finally {
+      if (reqId === reqCounterRef.current) {
+        setChecking(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void runBackendAnalysis(text);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [text, runBackendAnalysis]);
+
   const { issues, stats } = checkResult;
 
   const filteredIssues = useMemo(() => {
@@ -71,25 +123,41 @@ export const SpellCheckWorkspace: React.FC = () => {
   }, [issues, activeCategory]);
 
   const handleFixIssue = useCallback(
-    (issue: SpellIssue) => {
-      const updated = applySingleFix(text, issue);
+    (issue: SpellCheckIssueItem) => {
+      if (issue.startIndex < 0 || issue.endIndex > text.length) return;
+      const updated =
+        text.slice(0, issue.startIndex) +
+        issue.replacement +
+        text.slice(issue.endIndex);
       setText(updated);
-      message.success(`Đã sửa "${issue.original}" thành "${issue.replacement}"`);
+      message.success(
+        `Đã sửa "${issue.original.trim() || '[khoảng trắng]'}" thành "${issue.replacement || '[xóa]'}"`
+      );
     },
     [text]
   );
 
-  const handleFixAllSafe = useCallback(() => {
-    if (issues.length === 0) return;
-    const updated = applySafeAutoFixes(text, issues);
-    setText(updated);
-    message.success(`Đã tự động sửa ${issues.length} lỗi thể thức & chính tả!`);
-  }, [text, issues]);
+  const handleFixAllSafe = useCallback(async () => {
+    if (!text.trim() || issues.length === 0) return;
+    setFixingAll(true);
+    try {
+      const res = await hubApi.autoFixSpelling(text);
+      if (res.data) {
+        setText(res.data.fixed_text);
+        setCheckResult(res.data.remaining);
+        message.success(`Đã tự động chuẩn hóa ${res.data.fixed_count} lỗi an toàn!`);
+      }
+    } catch {
+      message.error('Lỗi khi tự động chuẩn hóa từ máy chủ.');
+    } finally {
+      setFixingAll(false);
+    }
+  }, [text, issues.length]);
 
   const handleCopy = useCallback(() => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    message.success('Đã sao chép nội dung văn bản vào khay nhớ tạm!');
+    message.success('Đã sao chép nội dung văn bản!');
   }, [text]);
 
   const handleDownload = useCallback(() => {
@@ -104,7 +172,7 @@ export const SpellCheckWorkspace: React.FC = () => {
     message.success('Đã tải tệp văn bản đã soát lỗi!');
   }, [text]);
 
-  const getTagColor = (cat: IssueCategory) => {
+  const getTagColor = (cat: SpellCheckIssueItem['category']) => {
     switch (cat) {
       case 'SPELLING':
         return 'error';
@@ -120,7 +188,6 @@ export const SpellCheckWorkspace: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 1380, margin: '0 auto', padding: isMobile ? '8px 12px' : '16px 20px' }}>
-      {/* Top Banner */}
       <Card
         size="small"
         style={{
@@ -145,14 +212,26 @@ export const SpellCheckWorkspace: React.FC = () => {
               <Title level={4} style={{ margin: 0, fontSize: isMobile ? 16 : 18, color: '#0F172A' }}>
                 Soát lỗi chính tả & ngữ phong hành chính
               </Title>
-              <Badge count={stats.total} overflowCount={99} style={{ backgroundColor: stats.total > 0 ? '#DC2626' : '#16A34A' }} />
+              <Badge
+                count={stats.total}
+                overflowCount={99}
+                style={{ backgroundColor: stats.total > 0 ? '#DC2626' : '#16A34A' }}
+              />
             </Space>
             <Text type="secondary" style={{ display: 'block', fontSize: 13, marginTop: 4 }}>
-              Rà soát lỗi gõ phím Telex/VNI, 404 cụm từ dễ nhầm lẫn, quy tắc viết hoa chức vụ & dấu câu theo NĐ 30/2020/NĐ-CP
+              Phân tích 4 tầng qua máy chủ: từ điển 8.345 âm tiết tiếng Việt, 406 cụm từ dễ nhầm lẫn, viết hoa & dấu câu NĐ 30/2020
             </Text>
           </div>
 
           <Space wrap size="small">
+            <Button
+              size="small"
+              icon={<SyncOutlined spin={checking} />}
+              onClick={() => void runBackendAnalysis(text)}
+              disabled={!text.trim()}
+            >
+              Kiểm tra ngay
+            </Button>
             <Button
               size="small"
               icon={<FileTextOutlined />}
@@ -163,7 +242,10 @@ export const SpellCheckWorkspace: React.FC = () => {
             <Button
               size="small"
               icon={<DeleteOutlined />}
-              onClick={() => setText('')}
+              onClick={() => {
+                setText('');
+                setCheckResult(EMPTY_RESULT);
+              }}
               danger
             >
               Xóa hết
@@ -188,18 +270,18 @@ export const SpellCheckWorkspace: React.FC = () => {
               type="primary"
               size="small"
               icon={<ThunderboltOutlined />}
-              onClick={handleFixAllSafe}
-              disabled={issues.length === 0}
+              loading={fixingAll}
+              onClick={() => void handleFixAllSafe()}
+              disabled={issues.filter((i) => i.isSafeAutoFix).length === 0}
               style={{ background: '#1D4ED8' }}
             >
-              Sửa tất cả ({stats.total})
+              Sửa lỗi an toàn ({issues.filter((i) => i.isSafeAutoFix).length})
             </Button>
           </Space>
         </div>
       </Card>
 
       <Row gutter={[16, 16]}>
-        {/* Left Column: Text Area & Highlight view */}
         <Col xs={24} lg={15}>
           <Card
             size="small"
@@ -245,7 +327,6 @@ export const SpellCheckWorkspace: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Right Column: Error categorization & Individual Fixes */}
         <Col xs={24} lg={9}>
           <Card
             size="small"
@@ -256,10 +337,10 @@ export const SpellCheckWorkspace: React.FC = () => {
                   <CheckCircleOutlined style={{ color: stats.total > 0 ? '#DC2626' : '#16A34A' }} />
                   <span style={{ fontWeight: 600 }}>Danh sách phát hiện ({stats.total})</span>
                 </Space>
+                {checking && <Text type="secondary" style={{ fontSize: 12 }}>Đang kiểm tra...</Text>}
               </div>
             }
           >
-            {/* Filter Tabs */}
             <Tabs
               activeKey={activeCategory}
               onChange={setActiveCategory}
@@ -267,80 +348,81 @@ export const SpellCheckWorkspace: React.FC = () => {
               items={[
                 { key: 'ALL', label: `Tất cả (${stats.total})` },
                 { key: 'CONFUSABLE', label: `Ngữ cảnh (${stats.confusable})` },
-                { key: 'SPELLING', label: `Gõ phím (${stats.spelling})` },
+                { key: 'SPELLING', label: `Chính tả (${stats.spelling})` },
                 { key: 'CAPITALIZATION', label: `Viết hoa (${stats.capitalization})` },
                 { key: 'PUNCTUATION', label: `Dấu câu (${stats.punctuation})` },
               ]}
               style={{ marginBottom: 8 }}
             />
 
-            {/* List of issues */}
-            <div style={{ maxHeight: isMobile ? 320 : 480, overflowY: 'auto', paddingRight: 4 }}>
-              {filteredIssues.length === 0 ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={
-                    text.trim()
-                      ? 'Tuyệt vời! Không phát hiện lỗi chính tả hoặc phong cách nào.'
-                      : 'Nhập nội dung văn bản để bắt đầu rà soát'
-                  }
-                  style={{ padding: '40px 0' }}
-                />
-              ) : (
-                <Space direction="vertical" style={{ width: '100%' }} size={10}>
-                  {filteredIssues.map((iss) => (
-                    <Card
-                      key={iss.id}
-                      size="small"
-                      style={{
-                        borderRadius: 4,
-                        border: '1px solid #E2E8F0',
-                        background: '#FAFAFA',
-                      }}
-                      bodyStyle={{ padding: 10 }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <Tag color={getTagColor(iss.category)} style={{ margin: 0, fontSize: 11 }}>
-                          {iss.categoryLabel}
-                        </Tag>
-                        <Button
-                          type="primary"
-                          size="small"
-                          icon={<CheckOutlined />}
-                          onClick={() => handleFixIssue(iss)}
-                          style={{
-                            background: '#16A34A',
-                            borderColor: '#16A34A',
-                            fontSize: 12,
-                            height: 24,
-                            padding: '0 8px',
-                          }}
-                        >
-                          Sửa: {iss.replacement === '' ? 'Xóa khoảng trắng' : iss.replacement}
-                        </Button>
-                      </div>
-
-                      <div style={{ fontSize: 13, marginBottom: 4 }}>
-                        <Text delete type="danger" style={{ fontWeight: 600 }}>
-                          {iss.original.trim() === '' ? '[khoảng trắng]' : iss.original}
-                        </Text>
-                        <Text style={{ margin: '0 6px', color: '#94A3B8' }}>→</Text>
-                        <Text strong style={{ color: '#16A34A' }}>
-                          {iss.replacement === '' ? '[xóa]' : iss.replacement}
-                        </Text>
-                      </div>
-
-                      <Paragraph
-                        type="secondary"
-                        style={{ fontSize: 12, margin: '4px 0 0 0', color: '#64748B' }}
+            <Spin spinning={checking && issues.length === 0} tip="Đang phân tích văn bản...">
+              <div style={{ maxHeight: isMobile ? 320 : 480, minHeight: 200, overflowY: 'auto', paddingRight: 4 }}>
+                {filteredIssues.length === 0 && !checking ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      text.trim()
+                        ? 'Tuyệt vời! Không phát hiện lỗi chính tả hoặc ngữ phong nào.'
+                        : 'Nhập nội dung văn bản để bắt đầu rà soát'
+                    }
+                    style={{ padding: '40px 0' }}
+                  />
+                ) : (
+                  <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                    {filteredIssues.map((iss) => (
+                      <Card
+                        key={iss.id}
+                        size="small"
+                        style={{
+                          borderRadius: 4,
+                          border: '1px solid #E2E8F0',
+                          background: '#FAFAFA',
+                        }}
+                        bodyStyle={{ padding: 10 }}
                       >
-                        {iss.message}
-                      </Paragraph>
-                    </Card>
-                  ))}
-                </Space>
-              )}
-            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <Tag color={getTagColor(iss.category)} style={{ margin: 0, fontSize: 11 }}>
+                            {iss.categoryLabel}
+                          </Tag>
+                          <Button
+                            type="primary"
+                            size="small"
+                            icon={<CheckOutlined />}
+                            onClick={() => handleFixIssue(iss)}
+                            style={{
+                              background: '#16A34A',
+                              borderColor: '#16A34A',
+                              fontSize: 12,
+                              height: 24,
+                              padding: '0 8px',
+                            }}
+                          >
+                            Sửa: {iss.replacement === '' ? 'Xóa khoảng trắng' : iss.replacement}
+                          </Button>
+                        </div>
+
+                        <div style={{ fontSize: 13, marginBottom: 4 }}>
+                          <Text delete type="danger" style={{ fontWeight: 600 }}>
+                            {iss.original.trim() === '' ? '[khoảng trắng]' : iss.original}
+                          </Text>
+                          <Text style={{ margin: '0 6px', color: '#94A3B8' }}>→</Text>
+                          <Text strong style={{ color: '#16A34A' }}>
+                            {iss.replacement === '' ? '[xóa]' : iss.replacement}
+                          </Text>
+                        </div>
+
+                        <Paragraph
+                          type="secondary"
+                          style={{ fontSize: 12, margin: '4px 0 0 0', color: '#64748B' }}
+                        >
+                          {iss.message}
+                        </Paragraph>
+                      </Card>
+                    ))}
+                  </Space>
+                )}
+              </div>
+            </Spin>
           </Card>
         </Col>
       </Row>

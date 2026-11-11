@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Button,
-  Card,
   Checkbox,
   InputNumber,
   Radio,
@@ -15,22 +14,19 @@ import {
 import {
   ScissorOutlined,
   RotateRightOutlined,
-  UploadOutlined,
   DeleteOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
 import { FileDropzone } from '@/components/common/FileDropzone';
 import { useImageQueue } from '../hooks/useImageQueue';
+import { useLiveImagePreview } from '../hooks/useLiveImagePreview';
 import { ResizeMode, ResizeOptions } from '../types/image';
 import { RESIZE_PRESETS, processResize } from '../services/image-resize';
-import { ResultBanner, ResultTable } from './ImageCommon';
-import { formatBytes } from '../services/image-decode';
-import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
+import { LiveImageStage } from './LiveImageStage';
 
 const { Text } = Typography;
 
 export const ImageResizeTab: React.FC = () => {
-  const isMobile = useIsMobile();
   const {
     items,
     results,
@@ -52,12 +48,8 @@ export const ImageResizeTab: React.FC = () => {
   const [flipH, setFlipH] = useState<boolean>(false);
   const [flipV, setFlipV] = useState<boolean>(false);
 
-  const handleRunResize = async () => {
-    if (items.length === 0) return;
-    setProcessing(true);
-    const newResults = [];
-
-    const options: ResizeOptions = {
+  const resizeOpts = useMemo<ResizeOptions>(
+    () => ({
       mode,
       presetId,
       width,
@@ -67,11 +59,20 @@ export const ImageResizeTab: React.FC = () => {
       rotate,
       flipH,
       flipV,
-    };
+    }),
+    [mode, presetId, width, height, percent, keepRatio, rotate, flipH, flipV]
+  );
 
+  const { activeId, setActiveId, livePreview, previewLoading } =
+    useLiveImagePreview(items, resizeOpts, processResize);
+
+  const handleRunBatch = async () => {
+    if (items.length === 0) return;
+    setProcessing(true);
+    const newResults = [];
     try {
       for (const item of items) {
-        const res = await processResize(item.file, options);
+        const res = await processResize(item.file, resizeOpts);
         newResults.push(res);
       }
       setResults(newResults);
@@ -95,53 +96,47 @@ export const ImageResizeTab: React.FC = () => {
   }
 
   return (
-    <div>
-      {results.length > 0 && (
-        <ResultBanner
-          results={results}
-          onReset={() => {
-            setResults([]);
-          }}
-          title="Đã đổi kích cỡ"
-        />
-      )}
+    <LiveImageStage
+      items={items}
+      activeId={activeId}
+      onSelectActive={setActiveId}
+      onRemoveItem={removeFile}
+      livePreview={livePreview}
+      previewLoading={previewLoading}
+      results={results}
+      onResetResults={() => setResults([])}
+      resultTitle="Đã đổi kích cỡ"
+      controlsSlot={
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: '#0F172A' }}>
+            Kích thước & Xoay lật
+          </div>
+          <Radio.Group
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            style={{ width: '100%', marginBottom: 12 }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Radio value="PRESET">Theo mẫu có sẵn</Radio>
+              <Radio value="PX">Theo điểm ảnh (px)</Radio>
+              <Radio value="PERCENT">Theo phần trăm (%)</Radio>
+            </Space>
+          </Radio.Group>
 
-      {/* Cấu hình kích cỡ */}
-      <Card
-        size="small"
-        style={{ marginBottom: 16, borderRadius: 6 }}
-        bodyStyle={{ padding: isMobile ? 12 : 16 }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Phương thức</div>
-        <Radio.Group
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-          style={{ marginBottom: 12 }}
-        >
-          <Space direction={isMobile ? 'vertical' : 'horizontal'}>
-            <Radio value="PRESET">Theo mẫu có sẵn</Radio>
-            <Radio value="PX">Theo điểm ảnh (px)</Radio>
-            <Radio value="PERCENT">Theo phần trăm (%)</Radio>
-          </Space>
-        </Radio.Group>
-
-        {mode === 'PRESET' && (
-          <div style={{ marginTop: 8 }}>
+          {mode === 'PRESET' && (
             <Select
               value={presetId}
               onChange={setPresetId}
-              style={{ width: isMobile ? '100%' : 260 }}
+              style={{ width: '100%' }}
               options={RESIZE_PRESETS.map((p) => ({
                 value: p.id,
-                label: `${p.name} (${p.width}x${p.height})`,
+                label: `${p.name} (${p.width}×${p.height})`,
               }))}
             />
-          </div>
-        )}
+          )}
 
-        {mode === 'PX' && (
-          <div style={{ marginTop: 8 }}>
-            <Space wrap align="center">
+          {mode === 'PX' && (
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <InputNumber
                 addonBefore="Rộng"
                 addonAfter="px"
@@ -149,7 +144,7 @@ export const ImageResizeTab: React.FC = () => {
                 max={10000}
                 value={width}
                 onChange={(v) => setWidth(v || undefined)}
-                style={{ width: 150 }}
+                style={{ width: '100%' }}
               />
               <InputNumber
                 addonBefore="Cao"
@@ -158,155 +153,94 @@ export const ImageResizeTab: React.FC = () => {
                 max={10000}
                 value={height}
                 onChange={(v) => setHeight(v || undefined)}
-                style={{ width: 150 }}
+                style={{ width: '100%' }}
               />
               <Checkbox
                 checked={keepRatio}
                 onChange={(e) => setKeepRatio(e.target.checked)}
               >
-                Khóa tỉ lệ
+                Khóa tỉ lệ khung hình
               </Checkbox>
             </Space>
-          </div>
-        )}
+          )}
 
-        {mode === 'PERCENT' && (
-          <div style={{ marginTop: 8 }}>
-            <Space align="center">
-              <Text>Tỉ lệ:</Text>
+          {mode === 'PERCENT' && (
+            <div>
+              <Text style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>
+                Tỉ lệ thu phóng:
+              </Text>
               <InputNumber
                 min={10}
                 max={200}
                 value={percent}
                 onChange={(v) => setPercent(v || 50)}
                 addonAfter="%"
-                style={{ width: 120 }}
+                style={{ width: '100%' }}
               />
-            </Space>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Xoay & Lật */}
-        <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
-          <Space wrap>
-            <Button
-              size="small"
-              icon={<RotateRightOutlined />}
-              onClick={() => setRotate((prev) => (prev + 90) % 360)}
-            >
-              Xoay 90° ({rotate}°)
-            </Button>
-            <Button
-              size="small"
-              icon={<SwapOutlined />}
-              type={flipH ? 'primary' : 'default'}
-              onClick={() => setFlipH((prev) => !prev)}
-            >
-              Lật ngang
-            </Button>
-            <Button
-              size="small"
-              icon={<SwapOutlined style={{ transform: 'rotate(90deg)' }} />}
-              type={flipV ? 'primary' : 'default'}
-              onClick={() => setFlipV((prev) => !prev)}
-            >
-              Lật dọc
-            </Button>
-          </Space>
-        </div>
-      </Card>
-
-      {/* Thanh hành động */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 16,
-        }}
-      >
-        <Space>
-          <FileDropzone
-            variant="inline"
-            accept="image/*"
-            multiple
-            label="Thêm ảnh"
-            onFilesSelected={addFiles}
-          />
-          <Button icon={<DeleteOutlined />} onClick={clearAll}>
-            Xóa hết
-          </Button>
-        </Space>
-
-        <Button
-          type="primary"
-          icon={<ScissorOutlined />}
-          loading={processing}
-          onClick={handleRunResize}
-          block={isMobile}
-          style={{ background: '#1D4ED8', minWidth: 140 }}
-        >
-          Đổi cỡ ảnh
-        </Button>
-      </div>
-
-      {/* Hiển thị kết quả hoặc danh sách file */}
-      {results.length > 0 ? (
-        <ResultTable results={results} originalFiles={items} />
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile
-              ? 'repeat(auto-fill, minmax(96px, 1fr))'
-              : 'repeat(auto-fill, minmax(130px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {items.map((it) => (
-            <Card
-              key={it.id}
-              size="small"
-              hoverable
-              style={{ borderRadius: 6, overflow: 'hidden', textAlign: 'center' }}
-              bodyStyle={{ padding: 8 }}
-              cover={
-                <div style={{ height: 90, background: '#F1F5F9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img
-                    src={it.previewUrl}
-                    alt={it.name}
-                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              }
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  marginBottom: 4,
-                }}
-              >
-                {it.name}
-              </div>
-              <div style={{ fontSize: 10, color: '#64748B', marginBottom: 6 }}>
-                {it.width}x{it.height}
-              </div>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #E2E8F0' }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: '#475569' }}>
+              Thao tác nhanh
+            </div>
+            <Space wrap>
               <Button
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => removeFile(it.id)}
-              />
-            </Card>
-          ))}
+                icon={<RotateRightOutlined />}
+                onClick={() => setRotate((prev) => (prev + 90) % 360)}
+              >
+                Xoay 90° ({rotate}°)
+              </Button>
+              <Button
+                size="small"
+                icon={<SwapOutlined />}
+                type={flipH ? 'primary' : 'default'}
+                onClick={() => setFlipH((prev) => !prev)}
+              >
+                Lật ngang
+              </Button>
+              <Button
+                size="small"
+                icon={<SwapOutlined style={{ transform: 'rotate(90deg)' }} />}
+                type={flipV ? 'primary' : 'default'}
+                onClick={() => setFlipV((prev) => !prev)}
+              >
+                Lật dọc
+              </Button>
+            </Space>
+          </div>
         </div>
-      )}
-    </div>
+      }
+      actionsSlot={
+        <Space direction="vertical" style={{ width: '100%' }} size={10}>
+          <Button
+            type="primary"
+            icon={<ScissorOutlined />}
+            loading={processing}
+            onClick={handleRunBatch}
+            block
+            size="large"
+            style={{ background: '#1D4ED8' }}
+          >
+            {items.length > 1
+              ? `Áp dụng cho ${items.length} ảnh`
+              : 'Áp dụng & xuất file'}
+          </Button>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+            <FileDropzone
+              variant="inline"
+              accept="image/*"
+              multiple
+              label="Thêm ảnh"
+              onFilesSelected={addFiles}
+            />
+            <Button icon={<DeleteOutlined />} onClick={clearAll} danger>
+              Xóa hết
+            </Button>
+          </Space>
+        </Space>
+      }
+    />
   );
 };
-

@@ -98,3 +98,4 @@ if __name__ == "__main__":
     test_extended_template_generation_and_injection()
     print("[PASS] test_extended_template_generation_and_injection")
     print("\nALL EXTENDED TEMPLATES TESTS PASSED!")
+

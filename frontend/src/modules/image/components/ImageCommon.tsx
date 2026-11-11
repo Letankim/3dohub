@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, Card, Modal, Progress, Space, Table, Tag, Tooltip } from 'antd';
+import { Button, Card, Space, Table, Tag, Tooltip } from 'antd';
 import {
   DownloadOutlined,
   FileZipOutlined,
-  DeleteOutlined,
   EyeOutlined,
   RedoOutlined,
   CheckCircleOutlined,
-  SwapOutlined,
 } from '@ant-design/icons';
 import { ProcessedImageResult, ImageFileItem } from '../types/image';
 import { formatBytes, downloadBlob } from '../services/image-decode';
+import { openFancyboxGallery } from '../services/fancybox-helper';
 import { useIsMobile } from '@/modules/pdf/hooks/useIsMobile';
 
 export async function downloadAllAsZip(results: ProcessedImageResult[], zipName = '3dohub_anh.zip') {
@@ -112,118 +111,12 @@ export const ResultBanner: React.FC<ResultBannerProps> = ({
   );
 };
 
-interface BeforeAfterModalProps {
-  open: boolean;
-  onClose: () => void;
-  origUrl: string;
-  procUrl: string;
-  name: string;
-}
-
-export const BeforeAfterModal: React.FC<BeforeAfterModalProps> = ({
-  open,
-  onClose,
-  origUrl,
-  procUrl,
-  name,
-}) => {
-  const isMobile = useIsMobile();
-  const [sliderPos, setSliderPos] = useState(50);
-
-  return (
-    <Modal
-      title={name || 'So sánh trước / sau'}
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      centered
-      width="min(94vw, 840px)"
-      destroyOnClose
-    >
-      <div style={{ textAlign: 'center', marginBottom: 12 }}>
-        <Space>
-          <Tag color="blue">Bên trái: Ảnh gốc</Tag>
-          <SwapOutlined />
-          <Tag color="green">Bên phải: Kết quả</Tag>
-        </Space>
-      </div>
-
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxHeight: 'calc(100vh - 260px)',
-          overflow: 'hidden',
-          borderRadius: 4,
-          background: '#0F172A',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <img
-          src={procUrl}
-          alt="Sau"
-          style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 280px)', objectFit: 'contain' }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            clipPath: `inset(0 ${100 - sliderPos}% 0 0)`,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <img
-            src={origUrl}
-            alt="Trước"
-            style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 280px)', objectFit: 'contain' }}
-          />
-        </div>
-
-        {/* Thanh trượt phân cách */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: `${sliderPos}%`,
-            width: 2,
-            background: '#FFFFFF',
-            boxShadow: '0 0 6px rgba(0,0,0,0.6)',
-            cursor: 'ew-resize',
-          }}
-        />
-      </div>
-
-      <div style={{ marginTop: 12, padding: '0 8px' }}>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={sliderPos}
-          onChange={(e) => setSliderPos(Number(e.target.value))}
-          style={{ width: '100%', cursor: 'pointer' }}
-        />
-      </div>
-    </Modal>
-  );
-};
-
 interface ResultTableProps {
   results: ProcessedImageResult[];
   originalFiles: ImageFileItem[];
 }
 
 export const ResultTable: React.FC<ResultTableProps> = ({ results, originalFiles }) => {
-  const isMobile = useIsMobile();
-  const [comparing, setComparing] = useState<{ origUrl: string; procUrl: string; name: string } | null>(null);
-
   const columns = [
     {
       title: 'Tên ảnh',
@@ -263,21 +156,27 @@ export const ResultTable: React.FC<ResultTableProps> = ({ results, originalFiles
         const orig = originalFiles.find((f) => f.name === r.originalName);
         return (
           <Space>
-            {orig && (
-              <Tooltip title="So sánh trước/sau">
-                <Button
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() =>
-                    setComparing({
-                      origUrl: orig.previewUrl,
-                      procUrl: r.downloadUrl,
-                      name: r.originalName,
-                    })
+            <Tooltip title="Xem ảnh bằng Fancybox">
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => {
+                  const slides = [
+                    {
+                      src: r.downloadUrl,
+                      caption: `Sau xử lý: ${r.originalName} (${r.width}x${r.height}, ${formatBytes(r.processedSize)})`,
+                    },
+                  ];
+                  if (orig) {
+                    slides.push({
+                      src: orig.previewUrl,
+                      caption: `Ảnh gốc: ${orig.name} (${formatBytes(orig.size)})`,
+                    });
                   }
-                />
-              </Tooltip>
-            )}
+                  void openFancyboxGallery(slides, 0);
+                }}
+              />
+            </Tooltip>
             <Button
               size="small"
               type="primary"
@@ -293,25 +192,14 @@ export const ResultTable: React.FC<ResultTableProps> = ({ results, originalFiles
   ];
 
   return (
-    <>
-      <Table
-        dataSource={results}
-        columns={columns}
-        rowKey="id"
-        size="small"
-        pagination={results.length > 10 ? { pageSize: 10 } : false}
-        scroll={{ x: 500 }}
-      />
-      {comparing && (
-        <BeforeAfterModal
-          open={!!comparing}
-          onClose={() => setComparing(null)}
-          origUrl={comparing.origUrl}
-          procUrl={comparing.procUrl}
-          name={comparing.name}
-        />
-      )}
-    </>
+    <Table
+      dataSource={results}
+      columns={columns}
+      rowKey="id"
+      size="small"
+      pagination={results.length > 10 ? { pageSize: 10 } : false}
+      scroll={{ x: 500 }}
+    />
   );
 };
 
